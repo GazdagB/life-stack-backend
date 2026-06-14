@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.db import get_connection
+from app.database.db import get_connection
 import psycopg
 
 router = APIRouter(

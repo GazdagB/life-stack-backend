@@ -14,7 +14,7 @@
 | id           | SERIAL        | Primary Key                          
 | category_id  | INTEGER       | Foreign key to expense_categories.id 
 | amount       | NUMERIC(10,2) | REQUIRED                             |
-| descreption  | TEXT          | Optional                             | 
+| description  | TEXT          | Optional                             | 
 | created_at   | TIMESTAMP     | Defaults to current timestamp        | 
 | expense_date | DATE          | REQUIRED                             | 
 | recurrence | VARCHAR(20) | NONE, DAILY, WEEKLY, MONTHLY, YEARLY (defaults to NONE)
