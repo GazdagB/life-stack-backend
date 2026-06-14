@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.repositories.expense_repository import get_all_expenses, insert_one_expense
+from app.repositories.expense_repository import get_all_expenses, insert_one_expense, update
 from pydantic import BaseModel
 from datetime import date
 from decimal import Decimal
@@ -21,3 +21,7 @@ def get_expenses():
 @router.post("/")
 def create_expense(expense: ExpenseCreate):
     return insert_one_expense(expense)
+
+@router.put("/")
+def update_expense(expense: ExpenseCreate,expense_id):
+    return update(expense,expense_id)
