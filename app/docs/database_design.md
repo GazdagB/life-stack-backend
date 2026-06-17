@@ -29,17 +29,17 @@
 
 
  ### todos
-| Column      | Type         | Notes                                                  |
-|-------------|--------------|--------------------------------------------------------|
-| id          | SERIAL       | Primary Key                                            |
-| title       | VARCHAR(120) | REQUIRED                                               |
- | description | TEXT         | Optional                                               |
-| priority    | ENUM         | 'P1', 'P2' , 'P3', 'P4', 'P5'                          |
- | created_at  | TIMESTAMP    | Defaults to current timestamp                          | 
-| updated_at  | TIMESTAMP | Updates whenever task changes                            |
- | due_date    | DATE         | Optional                                               |
-| completed_at | TIMESTAMP | Null until completed |
+| Column      | Type         | Notes                                                   |
+|-------------|--------------|---------------------------------------------------------|
+| id          | SERIAL       | Primary Key                                             |
+| title       | VARCHAR(120) | REQUIRED                                                |
+ | description | TEXT         | Optional                                                |
+| priority    | ENUM         | 'P1', 'P2' , 'P3', 'P4', 'P5'                           |
+ | created_at  | TIMESTAMP    | Defaults to current timestamp                           | 
+| updated_at  | TIMESTAMP | Updates whenever task changes                           |
+ | due_date    | DATE         | Optional                                                |
+| completed_at | TIMESTAMP | Null until completed                                    |
 | status      | VARCHAR(20)  | 'Not Started', 'In Progress' , 'Completed', 'cancelled' | 
- | sort_order | INTEGER | Optional: for manual ordering later |
- | source | VARCHAR(50) | Optional: Manual, cybro, import, system | 
+ | sort_order | INTEGER | Optional: for manual ordering later                     |
+ | source | VARCHAR(50) | Optional: manual, cybro, import, system                 | 
 

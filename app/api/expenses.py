@@ -22,10 +22,12 @@ def get_all():
 def create_one(expense: ExpenseCreate):
     return insert_one_expense(expense)
 
-@router.put("/")
-def update(expense: ExpenseCreate,expense_id):
+#TODO: Add HTTP Exception if not found
+@router.put("/{expense_id}")
+def update(expense: ExpenseCreate,expense_id: int):
     return update_expense(expense,expense_id)
 
+#TODO: Add HTTP Exception if not found
 @router.delete("/{expense_id}")
 def delete(expense_id: int):
     return delete_expense(expense_id)
