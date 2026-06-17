@@ -23,4 +23,26 @@ VALUES
     ((SELECT id FROM expense_categories WHERE name = 'Shopping'), 'New headphones', 79.99, 'Replacement headphones for work', CURRENT_DATE - 15, 'NONE'),
     ((SELECT id FROM expense_categories WHERE name = 'Other'), 'Birthday gift', 31.50, 'Gift for a family member', CURRENT_DATE - 9, 'YEARLY');
 
-
+INSERT INTO todos (
+    title,
+    description,
+    priority,
+    status,
+    due_date
+)
+VALUES
+('Implement todo API endpoints', 'Create CRUD endpoints for todos in the Life OS backend.', 'P1', 'in_progress', CURRENT_DATE),
+('Add todo database model', 'Create the todos table/model with priority, status, due date, and timestamps.', 'P1', 'completed', CURRENT_DATE),
+('Test todo creation endpoint', 'Send a POST request to create a new todo and verify it is saved correctly.', 'P1', 'not_started', CURRENT_DATE),
+('Study CompTIA A+ virtualization module', 'Watch one hour of the Udemy course and write notes.', 'P2', 'not_started', CURRENT_DATE),
+('Solve two LeetCode problems', 'Complete two coding problems and write down the pattern used.', 'P2', 'not_started', CURRENT_DATE),
+('Reinstall Raspberry Pi with Ubuntu Server', 'Flash Ubuntu Server 24.04 LTS 64-bit and enable SSH.', 'P2', 'not_started', CURRENT_DATE + INTERVAL '1 day'),
+('Install Docker on Raspberry Pi', 'Install Docker Engine and Docker Compose plugin.', 'P2', 'not_started', CURRENT_DATE + INTERVAL '1 day'),
+('Create Docker Compose file for Life OS', 'Define backend, frontend, and database services.', 'P2', 'not_started', CURRENT_DATE + INTERVAL '2 days'),
+('Check German course options', 'Ask schools about online or hybrid B2 Berufssprachkurs options.', 'P2', 'not_started', CURRENT_DATE),
+('Update address with important offices', 'Create checklist for offices, bank, insurance, and tax office.', 'P2', 'not_started', CURRENT_DATE),
+('Read German book for 15 minutes', 'Read German out loud and retell the section.', 'P3', 'not_started', CURRENT_DATE),
+('Read English book for 15 minutes', 'Read English out loud for pronunciation and fluency.', 'P3', 'not_started', CURRENT_DATE),
+('Prepare Tom job tool checklist', 'Review Notion checklist and prepare tools/materials.', 'P3', 'not_started', CURRENT_DATE + INTERVAL '3 days'),
+('Back up Life OS repository', 'Push current backend and documentation changes to GitHub.', 'P2', 'not_started', CURRENT_DATE),
+('Write README for Life OS backend', 'Document local setup, database setup, and API docs.', 'P3', 'not_started', CURRENT_DATE + INTERVAL '2 days');

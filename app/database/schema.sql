@@ -1,6 +1,8 @@
 DROP TABLE IF EXISTS expenses CASCADE;
 DROP TABLE IF EXISTS expense_categories CASCADE;
 DROP TYPE IF EXISTS occurrence CASCADE;
+DROP TABLE IF EXISTS todos CASCADE;
+
 
 CREATE TYPE occurrence AS ENUM (
     'NONE',
@@ -25,3 +27,17 @@ CREATE TABLE expenses (
     expense_date DATE NOT NULL,
     recurrence occurrence NOT NULL DEFAULT 'NONE'
 );
+
+CREATE TABLE todos (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(120) NOT NULL,
+    description TEXT,
+    priority VARCHAR(2) NOT NULL DEFAULT 'P3',
+    status VARCHAR(20) NOT NULL default 'not_started',
+    due_date DATE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    sort_order INTEGER DEFAULT 0,
+    source VARCHAR(50) DEFAULT 'manual'
+)
