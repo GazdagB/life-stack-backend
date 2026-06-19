@@ -1,3 +1,5 @@
+
+
 INSERT INTO expense_categories (name)
 VALUES ('Housing'),
        ('Utilities'),

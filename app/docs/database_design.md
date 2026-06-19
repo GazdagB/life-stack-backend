@@ -43,3 +43,14 @@
  | sort_order | INTEGER | Optional: for manual ordering later                     |
  | source | VARCHAR(50) | Optional: manual, cybro, import, system                 | 
 
+
+### users 
+
+| Column        | Type         | Notes                         |
+|---------------|--------------|-------------------------------|
+| id            | SERIAL  | Primary Key                   |
+| username      | VARCHAR(20) | REQUIRED  UNIQUE              | 
+| email         | VARCHAR(50) | REQUIRED  UNIQUE                    |
+| password_hash | TEXT | hashed_password               |
+| created_at | TIMESTAMP | CURRENT_TIMESTAMP ON CREATION | 
+
