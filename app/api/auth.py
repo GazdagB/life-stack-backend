@@ -1,6 +1,5 @@
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
-from pydantic.v1 import EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from starlette import status
 from starlette.exceptions import HTTPException
 
@@ -8,7 +7,7 @@ from app.repositories.users_repository import create_user, get_user_by_username_
 from app.services.auth_service import get_password_hash
 
 router = APIRouter(
-    prefix="auth",
+    prefix="/auth",
     tags=["auth"]
 )
 
@@ -17,7 +16,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     plain_password: str = Field(min_length=8, max_length=128)
 
-@router.get("/register")
+@router.post("/register")
 def register_user(user: UserCreate):
     existing_user = get_user_by_username_public(user.username)
     existing_user_email = get_user_by_email_public(user.email)
