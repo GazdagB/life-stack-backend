@@ -4,10 +4,10 @@ from psycopg.rows import dict_row
 
 from app.database.db import get_connection
 
-def get_all_expenses():
+def get_all_expenses(current_user_id):
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return cur.execute('SELECT * FROM expenses').fetchall()
+            return cur.execute('SELECT * FROM expenses WHERE user_id= %s', (current_user_id,),).fetchall()
 
 def insert_one_expense(expense):
 

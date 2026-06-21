@@ -26,16 +26,19 @@ username = os.environ["USER_NAME"]
 with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
     with conn.cursor() as cur:
         try:
+
+
             cur.execute(schema_sql)
             print('✅ Database initilaized with schema.sql')
-            cur.execute(seed_sql)
-            print('✅ Database populated with mocked data using: seed.sql')
             cur.execute(
-                """INSERT INTO users (username,email,password_hash)
-                VALUES (%s,%s,%s)
+                """INSERT INTO users (username, email, password_hash)
+                   VALUES (%s, %s, %s)
                 """,
-                (username,email,hashed)
+                (username, email, hashed)
             )
             print("✅ Admin user created successfully")
+            cur.execute(seed_sql)
+            print('✅ Database populated with mocked data using: seed.sql')
+
         except psycopg.Error as error:
             print(f'❌ Database Init and seeding failed: {error} ')

@@ -1,8 +1,17 @@
+DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS expenses CASCADE;
 DROP TABLE IF EXISTS expense_categories CASCADE;
 DROP TYPE IF EXISTS occurrence CASCADE;
 DROP TABLE IF EXISTS todos CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
+
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(20) NOT NULL UNIQUE,
+    email VARCHAR(50) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 
 CREATE TYPE occurrence AS ENUM (
@@ -21,6 +30,7 @@ CREATE TABLE expense_categories (
 CREATE TABLE expenses (
     id SERIAL PRIMARY KEY,
     category_id INTEGER REFERENCES expense_categories(id),
+    user_id INTEGER REFERENCES users(id),
     title VARCHAR(30) NOT NULL,
     amount NUMERIC(10,2) NOT NULL,
     description TEXT,
@@ -32,6 +42,7 @@ CREATE TABLE expenses (
 CREATE TABLE todos (
     id SERIAL PRIMARY KEY,
     title VARCHAR(120) NOT NULL,
+    user_id INTEGER REFERENCES users(id),
     description TEXT,
     priority VARCHAR(2) NOT NULL DEFAULT 'P3',
     status VARCHAR(20) NOT NULL default 'not_started',
@@ -43,10 +54,3 @@ CREATE TABLE todos (
     source VARCHAR(50) DEFAULT 'manual'
 );
 
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(20) NOT NULL UNIQUE,
-    email VARCHAR(50) NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);

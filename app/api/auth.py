@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from starlette import status
 from starlette.exceptions import HTTPException
@@ -16,10 +17,6 @@ router = APIRouter(
 class UserCreate(BaseModel):
     username: str = Field(min_length=3,max_length=20)
     email: EmailStr
-    plain_password: str = Field(min_length=8, max_length=128)
-
-class UserLogin(BaseModel):
-    username: str = Field(min_length=3, max_length=20)
     plain_password: str = Field(min_length=8, max_length=128)
 
 @router.post("/register")
@@ -43,8 +40,8 @@ def register_user(user: UserCreate):
     return create_user(user.username,user.email, password_hash)
 
 @router.post("/login")
-def login_user(user_creds: UserLogin):
-    user = get_user_by_username_private(user_creds.username)
+def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = get_user_by_username_private(form_data.username)
 
     if user is None:
         raise HTTPException(
@@ -53,7 +50,7 @@ def login_user(user_creds: UserLogin):
         )
 
     password_is_valid = verify_password(
-        user_creds.plain_password,
+        form_data.password,
         user["password_hash"],
     )
 
@@ -70,3 +67,4 @@ def login_user(user_creds: UserLogin):
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRES_MINUTES * 60,
     }
+
