@@ -1,9 +1,9 @@
 import psycopg
 import dotenv
-import os
+from app.config import settings
 
 dotenv.load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = settings.DATABASE_URL
 
 if not DATABASE_URL:
     print("DATABASE_URL not defined")

@@ -3,8 +3,10 @@ from pydantic import BaseModel, EmailStr, Field
 from starlette import status
 from starlette.exceptions import HTTPException
 
-from app.repositories.users_repository import create_user, get_user_by_username_public, get_user_by_email_public
-from app.services.auth_service import get_password_hash
+from app.config import settings
+from app.repositories.users_repository import create_user, get_user_by_username_public, get_user_by_email_public, \
+    get_user_pw_hash, get_user_by_username_private
+from app.services.auth_service import get_password_hash, verify_password, create_access_token
 
 router = APIRouter(
     prefix="/auth",
@@ -14,6 +16,10 @@ router = APIRouter(
 class UserCreate(BaseModel):
     username: str = Field(min_length=3,max_length=20)
     email: EmailStr
+    plain_password: str = Field(min_length=8, max_length=128)
+
+class UserLogin(BaseModel):
+    username: str = Field(min_length=3, max_length=20)
     plain_password: str = Field(min_length=8, max_length=128)
 
 @router.post("/register")
@@ -35,3 +41,32 @@ def register_user(user: UserCreate):
 
     password_hash = get_password_hash(user.plain_password)
     return create_user(user.username,user.email, password_hash)
+
+@router.post("/login")
+def login_user(user_creds: UserLogin):
+    user = get_user_by_username_private(user_creds.username)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credentials incorrect",
+        )
+
+    password_is_valid = verify_password(
+        user_creds.plain_password,
+        user["password_hash"],
+    )
+
+    if not password_is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credentials incorrect",
+        )
+
+    token = create_access_token(data={"sub": str(user["id"])})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRES_MINUTES * 60,
+    }
