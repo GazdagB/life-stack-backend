@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from starlette import status
@@ -6,8 +6,14 @@ from starlette.exceptions import HTTPException
 
 from app.config import settings
 from app.repositories.users_repository import create_user, get_user_by_username_public, get_user_by_email_public, \
-    get_user_pw_hash, get_user_by_username_private
-from app.services.auth_service import get_password_hash, verify_password, create_access_token
+    get_user_by_username_private
+from app.services.auth_service import (
+    SESSION_COOKIE_NAME,
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    verify_password,
+)
 
 router = APIRouter(
     prefix="/auth",
@@ -40,7 +46,7 @@ def register_user(user: UserCreate):
     return create_user(user.username,user.email, password_hash)
 
 @router.post("/login")
-def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
+def login_user(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user = get_user_by_username_private(form_data.username)
 
     if user is None:
@@ -61,10 +67,38 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
         )
 
     token = create_access_token(data={"sub": str(user["id"])})
+    max_age = settings.ACCESS_TOKEN_EXPIRES_MINUTES * 60
+
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+        max_age=max_age,
+    )
 
     return {
-        "access_token": token,
-        "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRES_MINUTES * 60,
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["email"],
+        },
+        "expires_in": max_age,
     }
 
+
+@router.get("/me")
+def get_me(current_user=Depends(get_current_user)):
+    return current_user
+
+
+@router.post("/logout")
+def logout_user(response: Response):
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        path="/",
+    )
+
+    return {"message": "Logged out"}

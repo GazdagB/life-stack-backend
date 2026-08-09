@@ -51,6 +51,19 @@ def get_user_by_email_private(email: str):
             ).fetchone()
 
 
+def get_user_by_id_public(user_id: int):
+    with get_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            return cur.execute(
+            """
+            SELECT id, username, email, created_at
+            FROM users
+            WHERE id = %s
+            """,
+            (user_id,),
+            ).fetchone()
+
+
 def get_user_pw_hash(username: str):
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:

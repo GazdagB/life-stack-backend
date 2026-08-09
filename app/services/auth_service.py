@@ -1,16 +1,15 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi.params import Depends
-from fastapi.security import OAuth2PasswordBearer
-
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from fastapi import HTTPException
+from fastapi import Cookie, HTTPException
 from starlette import status
 
 from app.config import settings
+from app.repositories.users_repository import get_user_by_id_public
 
 ALGORITHM = "HS256"
+SESSION_COOKIE_NAME = "session"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -49,11 +48,6 @@ def decode_access_token(token: str) -> dict:
         )
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
-def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
-    return get_user_id_from_token(token)
-
 def get_user_id_from_token(token: str) -> int:
     payload = decode_access_token(token)
 
@@ -73,3 +67,32 @@ def get_user_id_from_token(token: str) -> int:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
+
+
+def get_current_user(session: str | None = Cookie(default=None)):
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    user_id = get_user_id_from_token(session)
+    user = get_user_by_id_public(user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+        )
+
+    return user
+
+
+def get_current_user_id(session: str | None = Cookie(default=None)) -> int:
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    return get_user_id_from_token(session)
