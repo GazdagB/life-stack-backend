@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS expenses CASCADE;
 DROP TABLE IF EXISTS expense_categories CASCADE;
+DROP TABLE IF EXISTS recurring_expenses CASCADE;
 DROP TYPE IF EXISTS occurrence CASCADE;
 DROP TABLE IF EXISTS todos CASCADE;
 
@@ -37,6 +38,21 @@ CREATE TABLE expenses (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expense_date DATE NOT NULL,
     recurrence occurrence NOT NULL DEFAULT 'NONE'
+);
+
+CREATE TABLE recurring_expenses (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id INTEGER REFERENCES expense_categories(id),
+    title VARCHAR(120) NOT NULL,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    frequency occurrence NOT NULL CHECK (frequency <> 'NONE'),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (end_date IS NULL OR end_date >= start_date)
 );
 
 CREATE TABLE todos (
