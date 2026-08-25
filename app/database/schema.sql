@@ -30,7 +30,7 @@ CREATE TABLE expense_categories (
 CREATE TABLE expenses (
     id SERIAL PRIMARY KEY,
     category_id INTEGER REFERENCES expense_categories(id),
-    user_id INTEGER REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
     title VARCHAR(30) NOT NULL,
     amount NUMERIC(10,2) NOT NULL,
     description TEXT,
@@ -53,4 +53,3 @@ CREATE TABLE todos (
     sort_order INTEGER DEFAULT 0,
     source VARCHAR(50) DEFAULT 'manual'
 );
-

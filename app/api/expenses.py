@@ -28,15 +28,25 @@ def get_all(current_user_id: int = Depends(get_current_user_id)):
     }
 
 @router.post("/")
-def create_one(expense: ExpenseCreate):
-    return insert_one_expense(expense)
+def create_one(
+    expense: ExpenseCreate,
+    current_user_id: int = Depends(get_current_user_id),
+):
+    return insert_one_expense(expense, current_user_id)
 
 #TODO: Add HTTP Exception if not found
 @router.put("/{expense_id}")
-def update(expense: ExpenseCreate,expense_id: int):
-    return update_expense(expense,expense_id)
+def update(
+    expense: ExpenseCreate,
+    expense_id: int,
+    current_user_id: int = Depends(get_current_user_id),
+):
+    return update_expense(expense, expense_id, current_user_id)
 
 #TODO: Add HTTP Exception if not found
 @router.delete("/{expense_id}")
-def delete(expense_id: int):
-    return delete_expense(expense_id)
+def delete(
+    expense_id: int,
+    current_user_id: int = Depends(get_current_user_id),
+):
+    return delete_expense(expense_id, current_user_id)
