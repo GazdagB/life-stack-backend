@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS refresh_sessions CASCADE;
 DROP TABLE IF EXISTS expenses CASCADE;
 DROP TABLE IF EXISTS expense_categories CASCADE;
 DROP TABLE IF EXISTS recurring_expenses CASCADE;
@@ -11,8 +12,28 @@ CREATE TABLE users (
     username VARCHAR(20) NOT NULL UNIQUE,
     email VARCHAR(50) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    display_name VARCHAR(80),
+    bio VARCHAR(280),
+    avatar_data BYTEA,
+    avatar_content_type VARCHAR(50),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE refresh_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    family_id UUID NOT NULL,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    last_used_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TIMESTAMPTZ,
+    user_agent VARCHAR(500)
+);
+
+CREATE INDEX refresh_sessions_user_id_idx ON refresh_sessions(user_id);
+CREATE INDEX refresh_sessions_family_id_idx ON refresh_sessions(family_id);
 
 
 CREATE TYPE occurrence AS ENUM (
@@ -49,10 +70,16 @@ CREATE TABLE recurring_expenses (
     frequency occurrence NOT NULL CHECK (frequency <> 'NONE'),
     start_date DATE NOT NULL,
     end_date DATE,
+    cancellation_difficulty VARCHAR(20) NOT NULL DEFAULT 'EASY'
+        CHECK (cancellation_difficulty IN ('EASY', 'NOTICE_REQUIRED', 'CONTRACT_LOCKED', 'NON_CANCELLABLE', 'ESSENTIAL')),
+    cancellable_from DATE,
+    cancellation_notes VARCHAR(280),
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CHECK (end_date IS NULL OR end_date >= start_date)
+    CHECK (end_date IS NULL OR end_date >= start_date),
+    CHECK (cancellable_from IS NULL OR cancellable_from >= start_date),
+    CHECK (cancellable_from IS NULL OR cancellation_difficulty IN ('NOTICE_REQUIRED', 'CONTRACT_LOCKED'))
 );
 
 CREATE TABLE todos (

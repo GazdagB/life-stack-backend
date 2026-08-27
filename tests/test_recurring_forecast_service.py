@@ -2,6 +2,9 @@ import unittest
 from datetime import date
 from decimal import Decimal
 
+from pydantic import ValidationError
+
+from app.api.recurring_expenses import RecurringExpenseInput
 from app.services.recurring_forecast_service import (
     build_recurring_coverage,
     count_occurrences,
@@ -22,6 +25,30 @@ def recurring_expense(**overrides):
 
 
 class RecurringForecastServiceTests(unittest.TestCase):
+    def test_cancellation_date_cannot_precede_commitment(self):
+        with self.assertRaises(ValidationError):
+            RecurringExpenseInput(
+                title="Gym",
+                amount=Decimal("40.00"),
+                category_id=7,
+                frequency="MONTHLY",
+                start_date=date(2026, 8, 1),
+                cancellation_difficulty="CONTRACT_LOCKED",
+                cancellable_from=date(2026, 7, 31),
+            )
+
+    def test_non_cancellable_commitment_cannot_have_cancellation_date(self):
+        with self.assertRaises(ValidationError):
+            RecurringExpenseInput(
+                title="Installment",
+                amount=Decimal("90.00"),
+                category_id=11,
+                frequency="MONTHLY",
+                start_date=date(2026, 8, 1),
+                cancellation_difficulty="NON_CANCELLABLE",
+                cancellable_from=date(2027, 8, 1),
+            )
+
     def test_finite_monthly_contract_respects_end_date(self):
         forecast = build_recurring_coverage(
             [recurring_expense()],

@@ -1,29 +1,107 @@
-from fastapi import APIRouter, Depends, Response
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from fastapi import APIRouter, Cookie, Depends, File, Request, Response, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from starlette import status
 from starlette.exceptions import HTTPException
 
 from app.config import settings
-from app.repositories.users_repository import create_user, get_user_by_username_public, get_user_by_email_public, \
-    get_user_by_username_private
+from app.repositories.users_repository import (
+    create_user,
+    delete_user_avatar,
+    get_user_avatar,
+    get_user_by_email_public,
+    get_user_by_username_private,
+    get_user_by_username_public,
+    update_user_avatar,
+    update_user_profile,
+)
+from app.repositories.refresh_session_repository import (
+    create_refresh_session,
+    revoke_refresh_session,
+    rotate_refresh_session,
+)
 from app.services.auth_service import (
+    REFRESH_COOKIE_NAME,
     SESSION_COOKIE_NAME,
     create_access_token,
+    generate_refresh_token,
     get_current_user,
     get_password_hash,
+    hash_refresh_token,
+    refresh_token_expires_at,
     verify_password,
 )
+from app.services.profile_service import MAX_AVATAR_BYTES, validate_avatar
 
 router = APIRouter(
     prefix="/auth",
     tags=["auth"]
 )
 
+
+def _user_agent(request: Request) -> str | None:
+    value = request.headers.get("user-agent")
+    return value[:500] if value else None
+
+
+def _set_access_cookie(response: Response, user_id: int):
+    max_age = settings.ACCESS_TOKEN_EXPIRES_MINUTES * 60
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=create_access_token(data={"sub": str(user_id)}),
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+        max_age=max_age,
+    )
+    return max_age
+
+
+def _set_refresh_cookie(response: Response, token: str, expires_at: datetime):
+    utc_expires_at = expires_at.astimezone(timezone.utc)
+    max_age = max(0, int((utc_expires_at - datetime.now(timezone.utc)).total_seconds()))
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        path="/auth",
+        max_age=max_age,
+        expires=utc_expires_at,
+    )
+    return max_age
+
+
+def _clear_auth_cookies(response: Response):
+    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
+    response.delete_cookie(key=REFRESH_COOKIE_NAME, path="/auth")
+
+
+def _invalid_refresh_response():
+    response = JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": "Session has expired"},
+    )
+    _clear_auth_cookies(response)
+    return response
+
 class UserCreate(BaseModel):
     username: str = Field(min_length=3,max_length=20)
     email: EmailStr
     plain_password: str = Field(min_length=8, max_length=128)
+
+
+class ProfileUpdate(BaseModel):
+    username: str = Field(min_length=3, max_length=20)
+    email: EmailStr = Field(max_length=50)
+    display_name: str | None = Field(default=None, max_length=80)
+    bio: str | None = Field(default=None, max_length=280)
 
 @router.post("/register")
 def register_user(user: UserCreate):
@@ -46,7 +124,11 @@ def register_user(user: UserCreate):
     return create_user(user.username,user.email, password_hash)
 
 @router.post("/login")
-def login_user(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
+def login_user(
+    request: Request,
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
     user = get_user_by_username_private(form_data.username)
 
     if user is None:
@@ -66,26 +148,53 @@ def login_user(response: Response, form_data: OAuth2PasswordRequestForm = Depend
             detail="Credentials incorrect",
         )
 
-    token = create_access_token(data={"sub": str(user["id"])})
-    max_age = settings.ACCESS_TOKEN_EXPIRES_MINUTES * 60
-
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        secure=settings.SESSION_COOKIE_SECURE,
-        samesite="lax",
-        path="/",
-        max_age=max_age,
+    refresh_token = generate_refresh_token()
+    refresh_expires_at = refresh_token_expires_at()
+    create_refresh_session(
+        user["id"],
+        uuid4(),
+        hash_refresh_token(refresh_token),
+        refresh_expires_at,
+        _user_agent(request),
     )
+    access_max_age = _set_access_cookie(response, user["id"])
+    refresh_max_age = _set_refresh_cookie(response, refresh_token, refresh_expires_at)
 
     return {
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "email": user["email"],
-        },
-        "expires_in": max_age,
+        "user": {key: value for key, value in user.items() if key != "password_hash"},
+        "expires_in": access_max_age,
+        "refresh_expires_in": refresh_max_age,
+    }
+
+
+@router.post("/refresh")
+def refresh_user_session(
+    request: Request,
+    response: Response,
+    refresh_session: str | None = Cookie(default=None),
+):
+    if refresh_session is None:
+        return _invalid_refresh_response()
+
+    next_refresh_token = generate_refresh_token()
+    rotated = rotate_refresh_session(
+        hash_refresh_token(refresh_session),
+        hash_refresh_token(next_refresh_token),
+        settings.REFRESH_TOKEN_IDLE_DAYS,
+        _user_agent(request),
+    )
+    if rotated is None:
+        return _invalid_refresh_response()
+
+    access_max_age = _set_access_cookie(response, rotated["user_id"])
+    refresh_max_age = _set_refresh_cookie(
+        response,
+        next_refresh_token,
+        rotated["expires_at"],
+    )
+    return {
+        "expires_in": access_max_age,
+        "refresh_expires_in": refresh_max_age,
     }
 
 
@@ -94,11 +203,67 @@ def get_me(current_user=Depends(get_current_user)):
     return current_user
 
 
-@router.post("/logout")
-def logout_user(response: Response):
-    response.delete_cookie(
-        key=SESSION_COOKIE_NAME,
-        path="/",
+@router.put("/profile")
+def update_profile(
+    profile: ProfileUpdate,
+    current_user=Depends(get_current_user),
+):
+    username = profile.username.strip()
+    display_name = profile.display_name.strip() if profile.display_name else None
+    bio = profile.bio.strip() if profile.bio else None
+
+    if len(username) < 3:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Username must contain at least 3 characters",
+        )
+
+    return update_user_profile(
+        current_user["id"],
+        username,
+        str(profile.email).lower(),
+        display_name or None,
+        bio or None,
     )
+
+
+@router.post("/profile/avatar")
+async def upload_profile_avatar(
+    avatar: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+):
+    content = await avatar.read(MAX_AVATAR_BYTES + 1)
+    content_type = validate_avatar(content)
+    return update_user_avatar(current_user["id"], content, content_type)
+
+
+@router.get("/profile/avatar")
+def read_profile_avatar(current_user=Depends(get_current_user)):
+    avatar = get_user_avatar(current_user["id"])
+    if avatar is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile picture not found",
+        )
+    return Response(
+        content=avatar["avatar_data"],
+        media_type=avatar["avatar_content_type"],
+        headers={"Cache-Control": "private, no-cache"},
+    )
+
+
+@router.delete("/profile/avatar")
+def remove_profile_avatar(current_user=Depends(get_current_user)):
+    return delete_user_avatar(current_user["id"])
+
+
+@router.post("/logout")
+def logout_user(
+    response: Response,
+    refresh_session: str | None = Cookie(default=None),
+):
+    if refresh_session is not None:
+        revoke_refresh_session(hash_refresh_token(refresh_session))
+    _clear_auth_cookies(response)
 
     return {"message": "Logged out"}

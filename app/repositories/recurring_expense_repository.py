@@ -31,9 +31,12 @@ def create_recurring_expense(recurring_expense, current_user_id: int):
                     frequency,
                     start_date,
                     end_date,
+                    cancellation_difficulty,
+                    cancellable_from,
+                    cancellation_notes,
                     active
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING *
                 """,
                 (
@@ -44,6 +47,9 @@ def create_recurring_expense(recurring_expense, current_user_id: int):
                     recurring_expense.frequency,
                     recurring_expense.start_date,
                     recurring_expense.end_date,
+                    recurring_expense.cancellation_difficulty,
+                    recurring_expense.cancellable_from,
+                    recurring_expense.cancellation_notes,
                     recurring_expense.active,
                 ),
             ).fetchone()
@@ -65,6 +71,9 @@ def update_recurring_expense(
                     frequency = %s,
                     start_date = %s,
                     end_date = %s,
+                    cancellation_difficulty = %s,
+                    cancellable_from = %s,
+                    cancellation_notes = %s,
                     active = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s AND user_id = %s
@@ -77,6 +86,9 @@ def update_recurring_expense(
                     recurring_expense.frequency,
                     recurring_expense.start_date,
                     recurring_expense.end_date,
+                    recurring_expense.cancellation_difficulty,
+                    recurring_expense.cancellable_from,
+                    recurring_expense.cancellation_notes,
                     recurring_expense.active,
                     recurring_expense_id,
                     current_user_id,

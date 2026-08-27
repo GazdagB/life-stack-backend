@@ -27,12 +27,30 @@ class RecurringExpenseInput(BaseModel):
     frequency: Literal["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]
     start_date: date
     end_date: date | None = None
+    cancellation_difficulty: Literal[
+        "EASY",
+        "NOTICE_REQUIRED",
+        "CONTRACT_LOCKED",
+        "NON_CANCELLABLE",
+        "ESSENTIAL",
+    ] = "EASY"
+    cancellable_from: date | None = None
+    cancellation_notes: str | None = Field(default=None, max_length=280)
     active: bool = True
 
     @model_validator(mode="after")
     def validate_date_range(self):
         if self.end_date is not None and self.end_date < self.start_date:
             raise ValueError("End date cannot be before start date")
+        if self.cancellable_from is not None and self.cancellable_from < self.start_date:
+            raise ValueError("Earliest cancellation date cannot be before start date")
+        if self.cancellable_from is not None and self.cancellation_difficulty not in (
+            "NOTICE_REQUIRED",
+            "CONTRACT_LOCKED",
+        ):
+            raise ValueError(
+                "Earliest cancellation date is only valid when notice or a contract lock applies"
+            )
         return self
 
 
