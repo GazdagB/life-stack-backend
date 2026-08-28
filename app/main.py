@@ -5,6 +5,7 @@ from app.api.test_db import router as test_db_router
 from app.api.todos import router as todos_router
 from app.api.auth import router as auth_router
 from app.api.recurring_expenses import router as recurring_expenses_router
+from app.api.movies import router as movies_router
 
 app = FastAPI()
 
@@ -25,6 +26,7 @@ app.include_router(todos_router)
 
 app.include_router(auth_router)
 app.include_router(recurring_expenses_router)
+app.include_router(movies_router)
 
 @app.get("/")
 async def root():

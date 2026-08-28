@@ -10,4 +10,7 @@ class Settings:
     REFRESH_TOKEN_EXPIRES_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRES_DAYS", "30"))
     REFRESH_TOKEN_IDLE_DAYS = int(os.getenv("REFRESH_TOKEN_IDLE_DAYS", "7"))
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
+    OMDB_API_KEY = os.getenv("OMDB_API_KEY")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    OPENAI_MOVIE_MODEL = os.getenv("OPENAI_MOVIE_MODEL", "gpt-5.6-luna")
 settings = Settings()
