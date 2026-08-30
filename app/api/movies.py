@@ -12,11 +12,12 @@ from app.repositories.movie_repository import (
     get_user_movie_by_imdb_id,
     get_user_movies_by_imdb_ids,
     get_recent_rated_movies,
+    get_top_rated_movies,
     get_saved_movie_keys,
     list_user_movies,
     update_user_movie,
 )
-from app.services.auth_service import get_current_user_id
+from app.services.auth_service import get_current_user, get_current_user_id
 from app.services.movie_catalog_service import movie_catalog
 from app.services.movie_recommendation_service import (
     ai_recommendation_client,
@@ -85,14 +86,20 @@ def get_movies(
 
 
 @router.post("/recommendations")
-def recommend_movie(current_user_id: int = Depends(get_current_user_id)):
-    rated_movies = get_recent_rated_movies(current_user_id)
-    saved_movies = get_saved_movie_keys(current_user_id)
+def recommend_movie(current_user=Depends(get_current_user)):
+    rated_movies = get_recent_rated_movies(current_user["id"])
+    top_rated_movies = get_top_rated_movies(
+        current_user["id"],
+        [movie["imdb_id"] for movie in rated_movies],
+    )
+    saved_movies = get_saved_movie_keys(current_user["id"])
     return build_verified_recommendations(
         rated_movies,
         saved_movies,
         ai_recommendation_client,
         movie_catalog,
+        current_user.get("preferred_language") or "en",
+        top_rated_movies,
     )
 
 

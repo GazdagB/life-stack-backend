@@ -24,7 +24,7 @@ def rated_movie(number: int):
 
 
 class FakeAIClient:
-    def generate_candidates(self, rated_movies, saved_movies):
+    def generate_candidates(self, rated_movies, saved_movies, language="en", all_time_favorites=None):
         return [
             {"title": "Already Saved", "year": 2020, "reason": "First", "matched_preferences": ["Drama"]},
             {"title": "Fresh Film", "year": 2021, "reason": "A careful thematic match.", "matched_preferences": ["Drama", "Character-driven"]},
@@ -55,9 +55,21 @@ class MovieRecommendationServiceTests(unittest.TestCase):
             [rated_movie(index) for index in range(12)],
             [{"title": "Saved", "year": "2024", "imdb_id": "tt1"}],
         )
-        self.assertEqual(len(payload["rated_movies_newest_first"]), 10)
+        self.assertEqual(len(payload["recent_ratings_newest_first"]), 10)
         self.assertNotIn("user_id", payload)
-        self.assertEqual(payload["rated_movies_newest_first"][0]["personal_rating"], 8.5)
+        self.assertEqual(payload["recent_ratings_newest_first"][0]["personal_rating"], 8.5)
+        self.assertEqual(payload["recent_ratings_newest_first"][0]["signal_weight"], 1.0)
+        self.assertEqual(payload["recent_ratings_newest_first"][9]["signal_weight"], 0.55)
+
+    def test_payload_keeps_lower_weight_all_time_anchors_separate(self):
+        payload = build_preference_payload(
+            [rated_movie(1), rated_movie(2), rated_movie(3)],
+            [],
+            [rated_movie(20), rated_movie(21)],
+        )
+
+        self.assertEqual(len(payload["all_time_favorites"]), 2)
+        self.assertEqual(payload["all_time_favorites"][0]["signal_weight"], 0.35)
 
     def test_extracts_structured_responses_output(self):
         result = extract_structured_output({
@@ -96,6 +108,25 @@ class MovieRecommendationServiceTests(unittest.TestCase):
         self.assertEqual(request["model"], "test-model")
         self.assertEqual(request["text"]["format"]["type"], "json_schema")
         self.assertTrue(request["text"]["format"]["strict"])
+
+    @patch("app.services.movie_recommendation_service.httpx.post")
+    def test_requests_recommendation_copy_in_selected_language(self, post: Mock):
+        post.return_value.status_code = 200
+        post.return_value.is_error = False
+        post.return_value.json.return_value = {
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": '{"candidates": []}'}]}],
+        }
+        client = AIRecommendationClient(api_key="test", model="test-model")
+
+        client.generate_candidates(
+            [rated_movie(1), rated_movie(2), rated_movie(3)],
+            [],
+            "de",
+        )
+
+        instructions = post.call_args.kwargs["json"]["instructions"]
+        self.assertIn("German", instructions)
+        self.assertIn("canonical/original movie titles", instructions)
 
     @patch("app.services.movie_recommendation_service.httpx.post")
     def test_reports_billing_quota_separately_from_rate_limits(self, post: Mock):

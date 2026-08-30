@@ -57,7 +57,7 @@ def get_recent_rated_movies(user_id: int, limit: int = 10):
         with conn.cursor(row_factory=dict_row) as cur:
             return cur.execute(
                 """
-                SELECT title, year, genre, director, personal_rating, critique, updated_at
+                SELECT imdb_id, title, year, genre, director, personal_rating, critique, watched_at, updated_at
                 FROM user_movies
                 WHERE user_id = %s
                   AND list_status = 'WATCHED'
@@ -66,6 +66,31 @@ def get_recent_rated_movies(user_id: int, limit: int = 10):
                 LIMIT %s
                 """,
                 (user_id, limit),
+            ).fetchall()
+
+
+def get_top_rated_movies(
+    user_id: int,
+    exclude_imdb_ids: list[str] | None = None,
+    limit: int = 5,
+):
+    excluded = exclude_imdb_ids or []
+    with get_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            return cur.execute(
+                """
+                SELECT imdb_id, title, year, genre, director, personal_rating, critique, watched_at, updated_at
+                FROM user_movies
+                WHERE user_id = %s
+                  AND list_status = 'WATCHED'
+                  AND personal_rating IS NOT NULL
+                  AND NOT (imdb_id = ANY(%s))
+                ORDER BY personal_rating DESC,
+                         COALESCE(watched_at, created_at::date) DESC,
+                         updated_at DESC
+                LIMIT %s
+                """,
+                (user_id, excluded, limit),
             ).fetchall()
 
 
