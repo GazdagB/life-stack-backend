@@ -12,6 +12,7 @@ def get_user_by_username_public(username: str):
             """
             SELECT id, username, email, display_name, bio,
                    avatar_data IS NOT NULL AS has_avatar,
+                   preferred_language,
                    created_at, updated_at
             FROM users 
             WHERE username = %s
@@ -26,6 +27,7 @@ def get_user_by_username_private(username: str):
             """
             SELECT id, username, email, password_hash, display_name, bio,
                    avatar_data IS NOT NULL AS has_avatar,
+                   preferred_language,
                    created_at, updated_at
             FROM users 
             WHERE username = %s
@@ -40,6 +42,7 @@ def get_user_by_email_public(email: str):
             """
             SELECT id, username, email, display_name, bio,
                    avatar_data IS NOT NULL AS has_avatar,
+                   preferred_language,
                    created_at, updated_at
             FROM users 
             WHERE email = %s
@@ -54,6 +57,7 @@ def get_user_by_email_private(email: str):
             """
             SELECT id, username, email, password_hash, display_name, bio,
                    avatar_data IS NOT NULL AS has_avatar,
+                   preferred_language,
                    created_at, updated_at
             FROM users 
             WHERE email = %s
@@ -69,6 +73,7 @@ def get_user_by_id_public(user_id: int):
             """
             SELECT id, username, email, display_name, bio,
                    avatar_data IS NOT NULL AS has_avatar,
+                   preferred_language,
                    created_at, updated_at
             FROM users
             WHERE id = %s
@@ -92,8 +97,18 @@ def create_user(username: str, email: str, password_hash: str):
             INSERT INTO users (username,email,password_hash)
             VALUES (%s,%s,%s)
             RETURNING id, username, email, display_name, bio,
-                      FALSE AS has_avatar, created_at, updated_at
+                      FALSE AS has_avatar, preferred_language,
+                      created_at, updated_at
             """, (username,email,password_hash)).fetchone()
+
+
+def update_user_password_hash(user_id: int, password_hash: str):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (password_hash, user_id),
+            )
 
 
 def update_user_profile(
@@ -117,6 +132,7 @@ def update_user_profile(
                     WHERE id = %s
                     RETURNING id, username, email, display_name, bio,
                               avatar_data IS NOT NULL AS has_avatar,
+                              preferred_language,
                               created_at, updated_at
                     """,
                     (username, email, display_name, bio, user_id),
@@ -139,7 +155,8 @@ def update_user_avatar(user_id: int, content: bytes, content_type: str):
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
                 RETURNING id, username, email, display_name, bio,
-                          TRUE AS has_avatar, created_at, updated_at
+                          TRUE AS has_avatar, preferred_language,
+                          created_at, updated_at
                 """,
                 (content, content_type, user_id),
             ).fetchone()
@@ -156,9 +173,27 @@ def delete_user_avatar(user_id: int):
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
                 RETURNING id, username, email, display_name, bio,
-                          FALSE AS has_avatar, created_at, updated_at
+                          FALSE AS has_avatar, preferred_language,
+                          created_at, updated_at
                 """,
                 (user_id,),
+            ).fetchone()
+
+
+def update_user_language(user_id: int, preferred_language: str):
+    with get_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            return cur.execute(
+                """
+                UPDATE users
+                SET preferred_language = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                RETURNING id, username, email, display_name, bio,
+                          avatar_data IS NOT NULL AS has_avatar,
+                          preferred_language, created_at, updated_at
+                """,
+                (preferred_language, user_id),
             ).fetchone()
 
 

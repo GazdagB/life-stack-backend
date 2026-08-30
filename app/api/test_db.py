@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from app.database.db import get_connection
 import psycopg
 
@@ -15,4 +15,4 @@ def ping():
                 cur.execute("SELECT 1")
                 return {"message": "Connection alive"}
     except psycopg.Error as e:
-        return {f"Failed to connect to database: {e}"}
+        raise HTTPException(status_code=503, detail="Database unavailable") from e

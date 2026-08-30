@@ -1,18 +1,20 @@
 import datetime
 
-import psycopg
 from psycopg.rows import dict_row
 from fastapi import HTTPException
 
 
 from app.database.db import get_connection
 
-def query_all_todos():
+def query_all_todos(user_id: int):
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return cur.execute('SELECT * FROM todos').fetchall()
+            return cur.execute(
+                'SELECT * FROM todos WHERE user_id = %s ORDER BY sort_order, id',
+                (user_id,),
+            ).fetchall()
 
-def query_post_todo(todo):
+def query_post_todo(user_id: int, todo):
     title = todo.title
     description = todo.description
     priority = todo.priority
@@ -22,16 +24,22 @@ def query_post_todo(todo):
 
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return  cur.execute("""INSERT INTO todos (title,description, priority, due_date, sort_order, source) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *""", (title,description,priority,due_date,sort_order, source)).fetchall()
+            return cur.execute(
+                """
+                INSERT INTO todos (
+                    user_id, title, description, priority, due_date, sort_order, source
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING *
+                """,
+                (user_id, title, description, priority, due_date, sort_order, source),
+            ).fetchone()
 
-#TODO: Add HTTP Exception if not found
-
-def query_update_todo(todo_id, todo):
+def query_update_todo(user_id: int, todo_id: int, todo):
     updated_at = datetime.datetime.now()
 
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return cur.execute(
+            updated_todo = cur.execute(
                 """
                 UPDATE todos
                 SET title = %s,
@@ -42,7 +50,7 @@ def query_update_todo(todo_id, todo):
                     status = %s,
                     sort_order = %s,
                     source = %s
-                WHERE id = %s
+                WHERE id = %s AND user_id = %s
                 RETURNING *
                 """,
                 (
@@ -55,20 +63,26 @@ def query_update_todo(todo_id, todo):
                     todo.sort_order,
                     todo.source,
                     todo_id,
+                    user_id,
                 ),
             ).fetchone()
 
+            if updated_todo is None:
+                raise HTTPException(status_code=404, detail="Todo not found")
 
-def query_delete_todo(todo_id):
+            return updated_todo
+
+
+def query_delete_todo(user_id: int, todo_id: int):
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             deleted_todo = cur.execute(
                 """
                 DELETE FROM todos
-                WHERE id = %s
+                WHERE id = %s AND user_id = %s
                 RETURNING *
                 """,
-                [todo_id],
+                (todo_id, user_id),
             ).fetchone()
 
             if deleted_todo is None:
@@ -78,5 +92,3 @@ def query_delete_todo(todo_id):
                 "message": f"Successfully deleted todo with the id: {todo_id}",
                 "todo": deleted_todo,
             }
-
-

@@ -3,7 +3,9 @@ import hashlib
 import secrets
 
 from passlib.context import CryptContext
-from jose import jwt, JWTError
+from pwdlib import PasswordHash
+import jwt
+from jwt import InvalidTokenError
 from fastapi import Cookie, HTTPException
 from starlette import status
 
@@ -14,7 +16,9 @@ ALGORITHM = "HS256"
 SESSION_COOKIE_NAME = "session"
 REFRESH_COOKIE_NAME = "refresh_session"
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+legacy_password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_hasher = PasswordHash.recommended()
+DUMMY_PASSWORD_HASH = password_hasher.hash(secrets.token_urlsafe(32))
 
 
 def generate_refresh_token() -> str:
@@ -31,18 +35,43 @@ def refresh_token_expires_at() -> datetime:
     )
 
 def get_password_hash(password: str):
-    return pwd_context.hash(password)
+    return password_hasher.hash(password)
 
-def verify_password(plain_password, hash_password) -> bool:
-    return pwd_context.verify(plain_password,hash_password)
+
+def verify_login_password(plain_password: str, stored_hash: str | None) -> bool:
+    if len(plain_password) > 128:
+        password_hasher.verify("invalid-password", DUMMY_PASSWORD_HASH)
+        return False
+    if stored_hash is None:
+        password_hasher.verify(plain_password, DUMMY_PASSWORD_HASH)
+        return False
+    if stored_hash.startswith(("$2a$", "$2b$", "$2y$")):
+        if len(plain_password.encode("utf-8")) > 72:
+            legacy_password_context.verify("invalid-password", stored_hash)
+            return False
+        return legacy_password_context.verify(plain_password, stored_hash)
+    if stored_hash.startswith("$argon2"):
+        return password_hasher.verify(plain_password, stored_hash)
+    password_hasher.verify(plain_password, DUMMY_PASSWORD_HASH)
+    return False
+
+
+def password_hash_needs_upgrade(stored_hash: str) -> bool:
+    return stored_hash.startswith(("$2a$", "$2b$", "$2y$"))
 
 def create_access_token(data: dict):
-    expires_at = datetime.now(timezone.utc) + timedelta(
+    issued_at = datetime.now(timezone.utc)
+    expires_at = issued_at + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRES_MINUTES
     )
 
     payload= data.copy()
-    payload.update({"exp": expires_at})
+    payload.update({
+        "aud": settings.JWT_AUDIENCE,
+        "exp": expires_at,
+        "iat": issued_at,
+        "iss": settings.JWT_ISSUER,
+    })
 
     token = jwt.encode(payload,settings.SECRET_KEY, algorithm=ALGORITHM)
 
@@ -53,12 +82,15 @@ def decode_access_token(token: str) -> dict:
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
-            algorithms=[ALGORITHM]
+            algorithms=[ALGORITHM],
+            audience=settings.JWT_AUDIENCE,
+            issuer=settings.JWT_ISSUER,
+            options={"require": ["aud", "exp", "iat", "iss", "sub"]},
         )
 
         return payload
 
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

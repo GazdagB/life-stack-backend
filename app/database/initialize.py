@@ -3,10 +3,7 @@ import dotenv
 import os
 from pathlib import Path
 from typing import LiteralString,cast
-from passlib.context import CryptContext
-
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.services.auth_service import get_password_hash
 
 dotenv.load_dotenv()
 
@@ -18,7 +15,7 @@ seed_sql = cast(LiteralString, seed_path.read_text())
 
 password = os.environ["USER_PASSWORD"]
 
-hashed = pwd_context.hash(password)
+hashed = get_password_hash(password)
 email = os.environ["USER_EMAIL"]
 username = os.environ["USER_NAME"]
 

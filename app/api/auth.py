@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Cookie, Depends, File, Request, Response, UploadFile
@@ -17,7 +18,9 @@ from app.repositories.users_repository import (
     get_user_by_username_private,
     get_user_by_username_public,
     update_user_avatar,
+    update_user_password_hash,
     update_user_profile,
+    update_user_language,
 )
 from app.repositories.refresh_session_repository import (
     create_refresh_session,
@@ -32,10 +35,15 @@ from app.services.auth_service import (
     get_current_user,
     get_password_hash,
     hash_refresh_token,
+    password_hash_needs_upgrade,
     refresh_token_expires_at,
-    verify_password,
+    verify_login_password,
 )
 from app.services.profile_service import MAX_AVATAR_BYTES, validate_avatar
+from app.services.login_security_service import (
+    clear_successful_login_limits,
+    enforce_login_rate_limit,
+)
 
 router = APIRouter(
     prefix="/auth",
@@ -55,7 +63,7 @@ def _set_access_cookie(response: Response, user_id: int):
         value=create_access_token(data={"sub": str(user_id)}),
         httponly=True,
         secure=settings.SESSION_COOKIE_SECURE,
-        samesite="lax",
+        samesite="strict",
         path="/",
         max_age=max_age,
     )
@@ -70,7 +78,7 @@ def _set_refresh_cookie(response: Response, token: str, expires_at: datetime):
         value=token,
         httponly=True,
         secure=settings.SESSION_COOKIE_SECURE,
-        samesite="lax",
+        samesite="strict",
         path="/auth",
         max_age=max_age,
         expires=utc_expires_at,
@@ -94,7 +102,7 @@ def _invalid_refresh_response():
 class UserCreate(BaseModel):
     username: str = Field(min_length=3,max_length=20)
     email: EmailStr
-    plain_password: str = Field(min_length=8, max_length=128)
+    plain_password: str = Field(min_length=12, max_length=128)
 
 
 class ProfileUpdate(BaseModel):
@@ -103,8 +111,14 @@ class ProfileUpdate(BaseModel):
     display_name: str | None = Field(default=None, max_length=80)
     bio: str | None = Field(default=None, max_length=280)
 
+
+class PreferencesUpdate(BaseModel):
+    preferred_language: Literal["en", "de", "hu"]
+
 @router.post("/register")
 def register_user(user: UserCreate):
+    if not settings.REGISTRATION_ENABLED:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     existing_user = get_user_by_username_public(user.username)
     existing_user_email = get_user_by_email_public(user.email)
 
@@ -129,17 +143,12 @@ def login_user(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limit_keys = enforce_login_rate_limit(client_ip, form_data.username)
     user = get_user_by_username_private(form_data.username)
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credentials incorrect",
-        )
-
-    password_is_valid = verify_password(
+    password_is_valid = verify_login_password(
         form_data.password,
-        user["password_hash"],
+        user["password_hash"] if user else None,
     )
 
     if not password_is_valid:
@@ -147,6 +156,10 @@ def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credentials incorrect",
         )
+
+    if password_hash_needs_upgrade(user["password_hash"]):
+        update_user_password_hash(user["id"], get_password_hash(form_data.password))
+    clear_successful_login_limits(rate_limit_keys)
 
     refresh_token = generate_refresh_token()
     refresh_expires_at = refresh_token_expires_at()
@@ -224,6 +237,17 @@ def update_profile(
         str(profile.email).lower(),
         display_name or None,
         bio or None,
+    )
+
+
+@router.put("/settings")
+def update_preferences(
+    preferences: PreferencesUpdate,
+    current_user=Depends(get_current_user),
+):
+    return update_user_language(
+        current_user["id"],
+        preferences.preferred_language,
     )
 
 

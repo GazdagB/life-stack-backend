@@ -1,8 +1,9 @@
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from app.repositories.todos_repository import query_all_todos, query_post_todo,query_update_todo, query_delete_todo
+from app.services.auth_service import get_current_user_id
 from pydantic import BaseModel
 router = APIRouter(
     prefix="/todos",
@@ -20,17 +21,17 @@ class TodoCreate(BaseModel):
 
 
 @router.get("/")
-def get_all():
-    return query_all_todos()
+def get_all(current_user_id: int = Depends(get_current_user_id)):
+    return query_all_todos(current_user_id)
 
 @router.post("/")
-def create_one(todo: TodoCreate):
-    return query_post_todo(todo)
+def create_one(todo: TodoCreate, current_user_id: int = Depends(get_current_user_id)):
+    return query_post_todo(current_user_id, todo)
 
 @router.put("/{todo_id}")
-def update_one(todo: TodoCreate, todo_id: int):
-    return query_update_todo(todo_id,todo)
+def update_one(todo: TodoCreate, todo_id: int, current_user_id: int = Depends(get_current_user_id)):
+    return query_update_todo(current_user_id, todo_id, todo)
 
 @router.delete("/{todo_id}")
-def delete_one(todo_id: int): 
-    return query_delete_todo(todo_id)
+def delete_one(todo_id: int, current_user_id: int = Depends(get_current_user_id)):
+    return query_delete_todo(current_user_id, todo_id)
