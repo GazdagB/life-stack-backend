@@ -38,11 +38,15 @@ CREATE TABLE refresh_sessions (
     last_used_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     revoked_at TIMESTAMPTZ,
-    user_agent VARCHAR(500)
+    user_agent VARCHAR(500),
+    device_hash VARCHAR(64)
 );
 
 CREATE INDEX refresh_sessions_user_id_idx ON refresh_sessions(user_id);
 CREATE INDEX refresh_sessions_family_id_idx ON refresh_sessions(family_id);
+CREATE UNIQUE INDEX refresh_sessions_active_device_idx
+    ON refresh_sessions(user_id, device_hash)
+    WHERE revoked_at IS NULL AND device_hash IS NOT NULL;
 
 CREATE TABLE auth_rate_limits (
     scope VARCHAR(20) NOT NULL,

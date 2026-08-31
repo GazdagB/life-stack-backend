@@ -79,6 +79,18 @@ transparently replaced with Argon2id after the account's next successful login.
 Access tokens require the configured issuer, audience, subject, issued-at, and
 expiry claims.
 
+Authenticated settings expose active refresh-session families rather than raw
+tokens. Users can revoke one device or every other device, and access JWTs are
+bound to those families so revocation takes effect immediately. Password changes
+require the current password, enforce the same persistent account/IP throttle as
+login, require at least 15 characters, and revoke all other device sessions.
+
+Migration `017_add_session_device_identity.sql` adds a hashed, random browser-profile
+identifier to refresh sessions. Its raw value lives only in a long-lived `HttpOnly`
+cookie. A successful login from the same account and browser profile atomically
+revokes that profile's previous session before creating the new one, preventing
+duplicate Chrome entries without browser fingerprinting.
+
 For production, serve the frontend and `/api` from the same HTTPS origin behind
 a maintained reverse proxy or identity-aware access gateway. Configure at
 least:

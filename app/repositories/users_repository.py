@@ -90,6 +90,16 @@ def get_user_pw_hash(username: str):
             WHERE username = %s
             """, (username,),).fetchone()
 
+
+def get_user_password_hash_by_id(user_id: int) -> str | None:
+    with get_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            user = cur.execute(
+                "SELECT password_hash FROM users WHERE id = %s",
+                (user_id,),
+            ).fetchone()
+            return user["password_hash"] if user else None
+
 def create_user(username: str, email: str, password_hash: str):
     with get_connection() as conn:
         with conn.cursor() as cur:

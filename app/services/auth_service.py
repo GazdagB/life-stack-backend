@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
+from uuid import UUID
 
 from passlib.context import CryptContext
 from pwdlib import PasswordHash
@@ -11,10 +12,12 @@ from starlette import status
 
 from app.config import settings
 from app.repositories.users_repository import get_user_by_id_public
+from app.repositories.refresh_session_repository import is_refresh_session_family_active
 
 ALGORITHM = "HS256"
 SESSION_COOKIE_NAME = "session"
 REFRESH_COOKIE_NAME = "refresh_session"
+DEVICE_COOKIE_NAME = "device_id"
 
 legacy_password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 password_hasher = PasswordHash.recommended()
@@ -26,6 +29,14 @@ def generate_refresh_token() -> str:
 
 
 def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_device_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_device_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
@@ -85,7 +96,7 @@ def decode_access_token(token: str) -> dict:
             algorithms=[ALGORITHM],
             audience=settings.JWT_AUDIENCE,
             issuer=settings.JWT_ISSUER,
-            options={"require": ["aud", "exp", "iat", "iss", "sub"]},
+            options={"require": ["aud", "exp", "iat", "iss", "sub", "sid"]},
         )
 
         return payload
@@ -125,7 +136,8 @@ def get_current_user(session: str | None = Cookie(default=None)):
             detail="Not authenticated",
         )
 
-    user_id = get_user_id_from_token(session)
+    payload = decode_access_token(session)
+    user_id = _authenticated_session_user_id(payload)
     user = get_user_by_id_public(user_id)
 
     if user is None:
@@ -144,4 +156,28 @@ def get_current_user_id(session: str | None = Cookie(default=None)) -> int:
             detail="Not authenticated",
         )
 
-    return get_user_id_from_token(session)
+    return _authenticated_session_user_id(decode_access_token(session))
+
+
+def _authenticated_session_user_id(payload: dict) -> int:
+    user_id = payload.get("sub")
+    family_id = payload.get("sid")
+    try:
+        parsed_user_id = int(user_id)
+        parsed_family_id = UUID(str(family_id))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+        )
+
+    if not is_refresh_session_family_active(
+        parsed_user_id,
+        parsed_family_id,
+        settings.REFRESH_TOKEN_IDLE_DAYS,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked or expired",
+        )
+    return parsed_user_id
