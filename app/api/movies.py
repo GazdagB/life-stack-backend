@@ -20,6 +20,11 @@ from app.repositories.movie_repository import (
 from app.services.auth_service import get_current_user, get_current_user_id
 from app.services.movie_catalog_service import movie_catalog
 from app.services.movie_critique_service import movie_critique_client
+from app.services.movie_insights_service import (
+    build_movie_insights,
+    enrich_movie,
+    enrich_movies,
+)
 from app.services.movie_recommendation_service import (
     ai_recommendation_client,
     build_verified_recommendations,
@@ -99,9 +104,22 @@ def get_catalog_movie(
 @router.get("/")
 def get_movies(
     list_status: Literal["WANT_TO_WATCH", "WATCHED"] | None = None,
+    category: str | None = Query(default=None, min_length=1, max_length=80),
     current_user_id: int = Depends(get_current_user_id),
 ):
-    return list_user_movies(current_user_id, list_status)
+    movies = enrich_movies(list_user_movies(current_user_id, list_status))
+    if category:
+        normalized_category = category.strip().casefold()
+        movies = [
+            movie for movie in movies
+            if any(item.casefold() == normalized_category for item in movie["categories"])
+        ]
+    return movies
+
+
+@router.get("/insights")
+def get_movie_insights(current_user_id: int = Depends(get_current_user_id)):
+    return build_movie_insights(list_user_movies(current_user_id, "WATCHED"))
 
 
 @router.post("/recommendations")
@@ -138,7 +156,7 @@ def rewrite_critique(
 
 @router.get("/{movie_id}")
 def get_movie(movie_id: int, current_user_id: int = Depends(get_current_user_id)):
-    return get_user_movie(current_user_id, movie_id)
+    return enrich_movie(get_user_movie(current_user_id, movie_id))
 
 
 @router.post("/", status_code=201)
@@ -147,7 +165,7 @@ def add_movie(
     current_user_id: int = Depends(get_current_user_id),
 ):
     details = movie_catalog.details(movie.imdb_id)
-    return create_user_movie(current_user_id, details, movie.list_status)
+    return enrich_movie(create_user_movie(current_user_id, details, movie.list_status))
 
 
 @router.put("/{movie_id}")
@@ -156,7 +174,7 @@ def update_movie(
     movie: MovieUpdate,
     current_user_id: int = Depends(get_current_user_id),
 ):
-    return update_user_movie(current_user_id, movie_id, movie)
+    return enrich_movie(update_user_movie(current_user_id, movie_id, movie))
 
 
 @router.delete("/{movie_id}")
