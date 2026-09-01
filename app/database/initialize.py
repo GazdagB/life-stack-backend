@@ -7,6 +7,15 @@ from app.services.auth_service import get_password_hash
 
 dotenv.load_dotenv()
 
+if os.getenv("ENVIRONMENT", "development").lower() == "production":
+    raise RuntimeError("The development database initializer is disabled in production")
+
+if os.getenv("ALLOW_DEVELOPMENT_DATABASE_INIT", "false").lower() != "true":
+    raise RuntimeError(
+        "Refusing to initialize the database. Set "
+        "ALLOW_DEVELOPMENT_DATABASE_INIT=true only for an empty development database."
+    )
+
 schema_path = Path(__file__).with_name("schema.sql")
 schema_sql = cast(LiteralString, schema_path.read_text())
 

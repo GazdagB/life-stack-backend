@@ -10,6 +10,8 @@ from app.api.auth import router as auth_router
 from app.api.recurring_expenses import router as recurring_expenses_router
 from app.api.movies import router as movies_router
 from app.api.invoicing import router as invoicing_router
+from app.api.banking import router as banking_router
+from app.api.health import router as health_router
 
 app = FastAPI(
     docs_url="/docs" if settings.ENABLE_API_DOCS else None,
@@ -64,6 +66,8 @@ app.include_router(auth_router)
 app.include_router(recurring_expenses_router)
 app.include_router(movies_router)
 app.include_router(invoicing_router)
+app.include_router(banking_router)
+app.include_router(health_router)
 
 @app.get("/")
 async def root():

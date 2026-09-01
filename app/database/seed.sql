@@ -13,7 +13,8 @@ VALUES ('Housing'),
        ('Other'),
        ('Installment Payments'),
        ('Insurance'),
-       ('Legal & Tax');
+       ('Legal & Tax')
+ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO expenses (category_id, user_id, title, amount, description, expense_date, recurrence)
 VALUES

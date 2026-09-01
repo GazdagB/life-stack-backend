@@ -12,7 +12,6 @@ if not DATABASE_URL:
 
 def get_connection():
     try:
-        return psycopg.connect(DATABASE_URL)
+        return psycopg.connect(DATABASE_URL, connect_timeout=5)
     except psycopg.OperationalError as error:
         raise RuntimeError(f"Databse connection error: {error}")
-        

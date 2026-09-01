@@ -15,6 +15,14 @@ env/
 
 # Environment variables
 .env
+.env.*
+!.env.example
+
+# Secrets and database exports
+*.pem
+*.key
+*.dump
+*.sql.gz
 
 # OS files
 .DS_Store

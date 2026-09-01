@@ -61,6 +61,7 @@ router = APIRouter(
 
 security_logger = logging.getLogger("life_stack.security")
 DEVICE_COOKIE_MAX_AGE = 400 * 24 * 60 * 60
+REFRESH_COOKIE_PATH = f"{settings.PUBLIC_API_PREFIX}/auth"
 
 
 def _user_agent(request: Request) -> str | None:
@@ -91,7 +92,7 @@ def _set_refresh_cookie(response: Response, token: str, expires_at: datetime):
         httponly=True,
         secure=settings.SESSION_COOKIE_SECURE,
         samesite="strict",
-        path="/auth",
+        path=REFRESH_COOKIE_PATH,
         max_age=max_age,
         expires=utc_expires_at,
     )
@@ -114,7 +115,7 @@ def _device_identity(response: Response, device_id: str | None) -> tuple[str, st
 
 def _clear_auth_cookies(response: Response):
     response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
-    response.delete_cookie(key=REFRESH_COOKIE_NAME, path="/auth")
+    response.delete_cookie(key=REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
 
 
 def _invalid_refresh_response():

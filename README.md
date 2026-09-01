@@ -2,6 +2,51 @@
 
 A personal operating system for tracking and analyzing all aspects of my life.
 
+## Database migrations
+
+Alembic owns the production schema. For a brand-new empty database, run:
+
+```shell
+alembic upgrade head
+```
+
+The baseline migration applies `app/database/schema.sql`, which is deliberately
+non-destructive and contains only the canonical schema and reference expense
+categories. It never creates a user or mock expenses.
+
+An existing LifeOS database that already contains every change through legacy
+migration `018_add_bank_sync.sql` must be backed up and inspected before it is
+adopted by Alembic. After confirming that schema is current, record the baseline
+without executing it:
+
+```shell
+alembic stamp 20260901_01
+```
+
+Do not run `alembic upgrade head` against an existing, unstamped database: the
+baseline is for an empty database. `app.database.initialize` remains available
+only for disposable local development databases and now requires the explicit
+`ALLOW_DEVELOPMENT_DATABASE_INIT=true` opt-in. It is always disabled when
+`ENVIRONMENT=production`.
+
+New database changes must be added as forward Alembic revisions. The baseline
+downgrade is intentionally disabled because dropping the entire application
+schema would destroy user data.
+
+## Production containers
+
+The backend Docker image runs FastAPI as an unprivileged Linux user. Railway
+runs `alembic upgrade head` as its pre-deploy command, checks `/healthz`, and
+then starts Uvicorn on `PORT`. `/readyz` performs a private PostgreSQL readiness
+check without returning connection details.
+
+The backend should not receive a Railway public domain. Caddy in the frontend
+service proxies public `/api/*` requests to `backend.railway.internal:8000`.
+Set `PORT=8000` and `FORWARDED_ALLOW_IPS=*` on the private Railway backend; do
+not use the wildcard if the backend is ever exposed directly to the internet.
+Keep `PUBLIC_API_PREFIX=/api`; this scopes the refresh-token cookie to the
+browser-visible proxy path even though Caddy removes `/api` before forwarding.
+
 ## Planned Features
 
 - Expense tracking
@@ -29,6 +74,37 @@ AI movie recommendations use the OpenAI Responses API. Add `OPENAI_API_KEY` to
 10 most recently rated movie titles, basic metadata, personal scores, critiques,
 and up to 250 saved-title exclusions are sent. Account identity is never included,
 and API responses are requested with storage disabled.
+
+## Read-only bank synchronization
+
+Migration `018_add_bank_sync.sql` adds Enable Banking connections, accounts, and
+a reviewable transaction inbox. The backend uses Enable Banking's hosted bank
+authorization, so LifeOS never receives a bank password, PIN, or TAN. It stores
+only the account label, currency, balance, last four IBAN characters, and the
+minimal transaction fields needed for expense tracking. Provider session IDs are
+encrypted with Fernet before they are stored in PostgreSQL.
+
+Add these values to `.env` before connecting an account:
+
+```dotenv
+ENABLE_BANKING_APP_ID=<application-id-from-enable-banking>
+ENABLE_BANKING_PRIVATE_KEY_PATH=/absolute/path/to/enable-banking-private.pem
+BANK_DATA_ENCRYPTION_KEY=<one-time-fernet-key>
+ENABLE_BANKING_REDIRECT_URL=http://localhost:5173/expenses/bank-accounts/callback
+```
+
+Generate the encryption key once, keep it in the deployment secret store, and
+include it in encrypted backups:
+
+```shell
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Synchronization upserts pending transactions when the bank later books them and
+deduplicates them per account. Only a booked debit can be imported as an expense;
+credits and pending card authorizations remain outside the expense ledger.
+Disconnecting revokes the provider session and stops future synchronization but
+keeps expenses that were already imported.
 
 ## Business invoicing
 
@@ -100,7 +176,7 @@ ENVIRONMENT=production
 JWT_SECRET_KEY=<at-least-32-random-characters>
 SESSION_COOKIE_SECURE=true
 ALLOWED_ORIGINS=https://your-private-app.example
-ALLOWED_HOSTS=your-private-app.example
+ALLOWED_HOSTS=your-private-app.example,healthcheck.railway.app
 REGISTRATION_ENABLED=false
 ENABLE_API_DOCS=false
 ENABLE_DB_HEALTH_ROUTE=false

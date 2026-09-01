@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.repositories.movie_repository import (
     create_user_movie,
@@ -19,6 +19,7 @@ from app.repositories.movie_repository import (
 )
 from app.services.auth_service import get_current_user, get_current_user_id
 from app.services.movie_catalog_service import movie_catalog
+from app.services.movie_critique_service import movie_critique_client
 from app.services.movie_recommendation_service import (
     ai_recommendation_client,
     build_verified_recommendations,
@@ -45,6 +46,24 @@ class MovieUpdate(BaseModel):
                 raise ValueError("Only watched movies can have a rating or watched date")
         self.critique = self.critique.strip() if self.critique else None
         return self
+
+
+class CritiqueRewriteRequest(BaseModel):
+    critique: str = Field(min_length=3, max_length=2000)
+    movie_title: str | None = Field(default=None, max_length=300)
+    previous_suggestion: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("critique")
+    @classmethod
+    def validate_critique(cls, value: str):
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("Critique must contain at least three non-whitespace characters")
+        return value
+
+
+class CritiqueRewriteResponse(BaseModel):
+    rewritten_critique: str = Field(min_length=1, max_length=2000)
 
 
 @router.get("/search")
@@ -101,6 +120,20 @@ def recommend_movie(current_user=Depends(get_current_user)):
         current_user.get("preferred_language") or "en",
         top_rated_movies,
     )
+
+
+@router.post("/critique/rewrite", response_model=CritiqueRewriteResponse)
+def rewrite_critique(
+    request: CritiqueRewriteRequest,
+    _current_user_id: int = Depends(get_current_user_id),
+):
+    return {
+        "rewritten_critique": movie_critique_client.rewrite(
+            request.critique,
+            request.movie_title.strip() if request.movie_title else None,
+            request.previous_suggestion.strip() if request.previous_suggestion else None,
+        )
+    }
 
 
 @router.get("/{movie_id}")
