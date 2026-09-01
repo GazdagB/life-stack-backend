@@ -10,6 +10,9 @@ def _csv_setting(name: str, default: str) -> list[str]:
 class Settings:
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
     DATABASE_URL = os.getenv("DATABASE_URL")
+    DB_POOL_MIN_SIZE = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
+    DB_POOL_MAX_SIZE = int(os.getenv("DB_POOL_MAX_SIZE", "5"))
+    DB_POOL_TIMEOUT_SECONDS = float(os.getenv("DB_POOL_TIMEOUT_SECONDS", "5"))
     SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
     JWT_ISSUER = os.getenv("JWT_ISSUER", "life-stack-api")
     JWT_AUDIENCE = os.getenv("JWT_AUDIENCE", "life-stack-web")
@@ -44,6 +47,12 @@ class Settings:
     ENABLE_BANKING_CONSENT_DAYS = min(int(os.getenv("ENABLE_BANKING_CONSENT_DAYS", "89")), 90)
 
     def validate(self):
+        if self.DB_POOL_MIN_SIZE < 0:
+            raise RuntimeError("DB_POOL_MIN_SIZE must be zero or greater")
+        if self.DB_POOL_MAX_SIZE < max(1, self.DB_POOL_MIN_SIZE):
+            raise RuntimeError("DB_POOL_MAX_SIZE must be at least one and not smaller than DB_POOL_MIN_SIZE")
+        if self.DB_POOL_TIMEOUT_SECONDS <= 0:
+            raise RuntimeError("DB_POOL_TIMEOUT_SECONDS must be greater than zero")
         if self.PUBLIC_API_PREFIX and not self.PUBLIC_API_PREFIX.startswith("/"):
             raise RuntimeError("PUBLIC_API_PREFIX must be empty or start with /")
         if self.ENVIRONMENT == "production":

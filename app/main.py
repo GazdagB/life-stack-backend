@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -12,11 +14,20 @@ from app.api.movies import router as movies_router
 from app.api.invoicing import router as invoicing_router
 from app.api.banking import router as banking_router
 from app.api.health import router as health_router
+from app.database.db import close_connection_pool, open_connection_pool
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    open_connection_pool()
+    yield
+    close_connection_pool()
 
 app = FastAPI(
     docs_url="/docs" if settings.ENABLE_API_DOCS else None,
     redoc_url="/redoc" if settings.ENABLE_API_DOCS else None,
     openapi_url="/openapi.json" if settings.ENABLE_API_DOCS else None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
