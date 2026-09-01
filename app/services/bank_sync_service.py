@@ -170,7 +170,24 @@ class EnableBankingClient:
             headers={"typ": "JWT", "kid": self.app_id},
         )
 
+    def _ensure_configured(self) -> None:
+        if settings.banking_configuration_error():
+            raise HTTPException(
+                status_code=503,
+                detail="Bank synchronization is temporarily unavailable.",
+            )
+        # Validate the Fernet key before starting any provider workflow. This
+        # prevents creating a consent that cannot later be stored securely.
+        try:
+            _bank_cipher()
+        except HTTPException as error:
+            raise HTTPException(
+                status_code=503,
+                detail="Bank synchronization is temporarily unavailable.",
+            ) from error
+
     def _request(self, method: str, path: str, **kwargs) -> dict:
+        self._ensure_configured()
         try:
             response = httpx.request(
                 method,

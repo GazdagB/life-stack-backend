@@ -46,6 +46,17 @@ class Settings:
     ENABLE_BANKING_REDIRECT_URL = os.getenv("ENABLE_BANKING_REDIRECT_URL", "http://localhost:5173/expenses/bank-accounts/callback")
     ENABLE_BANKING_CONSENT_DAYS = min(int(os.getenv("ENABLE_BANKING_CONSENT_DAYS", "89")), 90)
 
+    def banking_configuration_error(self) -> str | None:
+        if not self.ENABLE_BANKING_APP_ID:
+            return "ENABLE_BANKING_APP_ID is not configured"
+        if not (self.ENABLE_BANKING_PRIVATE_KEY or self.ENABLE_BANKING_PRIVATE_KEY_PATH):
+            return "an Enable Banking private key is not configured"
+        if not self.BANK_DATA_ENCRYPTION_KEY:
+            return "BANK_DATA_ENCRYPTION_KEY is not configured"
+        if self.ENVIRONMENT == "production" and not self.ENABLE_BANKING_REDIRECT_URL.startswith("https://"):
+            return "the production Enable Banking redirect URL must use HTTPS"
+        return None
+
     def validate(self):
         if self.DB_POOL_MIN_SIZE < 0:
             raise RuntimeError("DB_POOL_MIN_SIZE must be zero or greater")
@@ -64,10 +75,9 @@ class Settings:
                 raise RuntimeError("Production ALLOWED_ORIGINS must use HTTPS")
             if not self.ALLOWED_HOSTS or "*" in self.ALLOWED_HOSTS:
                 raise RuntimeError("Production ALLOWED_HOSTS must explicitly list the public hostname")
-            if self.ENABLE_BANKING_APP_ID and not self.ENABLE_BANKING_REDIRECT_URL.startswith("https://"):
-                raise RuntimeError("Production ENABLE_BANKING_REDIRECT_URL must use HTTPS")
-            if self.ENABLE_BANKING_APP_ID and not self.BANK_DATA_ENCRYPTION_KEY:
-                raise RuntimeError("BANK_DATA_ENCRYPTION_KEY is required when bank synchronization is enabled")
+            # Banking is an optional integration. Its configuration is checked by
+            # the banking client so a missing provider secret cannot take down the
+            # rest of the application during startup.
 
 settings = Settings()
 settings.validate()

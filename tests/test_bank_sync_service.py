@@ -1,7 +1,12 @@
 import unittest
 from decimal import Decimal
+from unittest.mock import patch
 
+from fastapi import HTTPException
+
+from app.config import settings
 from app.services.bank_sync_service import (
+    EnableBankingClient,
     decrypt_provider_secret,
     encrypt_provider_secret,
     normalize_account,
@@ -13,6 +18,19 @@ from app.services.bank_sync_service import (
 
 
 class BankSyncServiceTests(unittest.TestCase):
+    def test_incomplete_configuration_returns_503_without_calling_provider(self):
+        original_key = settings.BANK_DATA_ENCRYPTION_KEY
+        settings.BANK_DATA_ENCRYPTION_KEY = None
+        try:
+            with patch("app.services.bank_sync_service.httpx.request") as provider_request:
+                with self.assertRaises(HTTPException) as raised:
+                    EnableBankingClient().institutions("DE")
+            self.assertEqual(raised.exception.status_code, 503)
+            self.assertEqual(raised.exception.detail, "Bank synchronization is temporarily unavailable.")
+            provider_request.assert_not_called()
+        finally:
+            settings.BANK_DATA_ENCRYPTION_KEY = original_key
+
     def test_fingerprint_is_stable_for_provider_reference(self):
         first = transaction_fingerprint("account-1", {"entry_reference": "entry-42", "status": "BOOK"})
         second = transaction_fingerprint("account-1", {"entry_reference": "entry-42", "status": "PDNG"})
