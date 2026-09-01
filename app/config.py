@@ -7,6 +7,14 @@ load_dotenv()
 def _csv_setting(name: str, default: str) -> list[str]:
     return [value.strip() for value in os.getenv(name, default).split(",") if value.strip()]
 
+
+def _bounded_int_setting(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return min(max(value, minimum), maximum)
+
 class Settings:
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
     DATABASE_URL = os.getenv("DATABASE_URL")
@@ -44,7 +52,9 @@ class Settings:
     ENABLE_BANKING_PRIVATE_KEY_PATH = os.getenv("ENABLE_BANKING_PRIVATE_KEY_PATH")
     ENABLE_BANKING_BASE_URL = os.getenv("ENABLE_BANKING_BASE_URL", "https://api.enablebanking.com")
     ENABLE_BANKING_REDIRECT_URL = os.getenv("ENABLE_BANKING_REDIRECT_URL", "http://localhost:5173/expenses/bank-accounts/callback")
-    ENABLE_BANKING_CONSENT_DAYS = min(int(os.getenv("ENABLE_BANKING_CONSENT_DAYS", "89")), 90)
+    ENABLE_BANKING_CONSENT_DAYS = _bounded_int_setting("ENABLE_BANKING_CONSENT_DAYS", 89, 1, 90)
+    BANK_INITIAL_SYNC_DAYS = _bounded_int_setting("BANK_INITIAL_SYNC_DAYS", 31, 1, 365)
+    BANK_SYNC_OVERLAP_DAYS = _bounded_int_setting("BANK_SYNC_OVERLAP_DAYS", 3, 0, 14)
 
     def banking_configuration_error(self) -> str | None:
         if not self.ENABLE_BANKING_APP_ID:

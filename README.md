@@ -163,6 +163,8 @@ openssl rand -base64 48
 | `ENABLE_BANKING_BASE_URL` | Provider API URL. |
 | `ENABLE_BANKING_REDIRECT_URL` | Exact frontend callback URL registered with the provider. |
 | `ENABLE_BANKING_CONSENT_DAYS` | Requested consent duration, capped at 90 days. |
+| `BANK_INITIAL_SYNC_DAYS` | Initial transaction history window; defaults to the last 31 days. |
+| `BANK_SYNC_OVERLAP_DAYS` | Days re-fetched after a successful sync to reconcile pending transactions. |
 | `BANK_DATA_ENCRYPTION_KEY` | Fernet key used to encrypt provider session IDs at rest. |
 
 Generate the bank-data key once and include it in the protected secret backup process:

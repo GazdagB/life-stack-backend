@@ -1,7 +1,7 @@
 import hashlib
 import json
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -244,11 +244,12 @@ class EnableBankingClient:
     def balances(self, account_id: str) -> dict:
         return self._request("GET", f"/accounts/{account_id}/balances")
 
-    def transactions(self, account_id: str) -> list[dict]:
+    def transactions(self, account_id: str, date_from: date) -> list[dict]:
         transactions: list[dict] = []
         continuation_key = None
+        base_params = {"date_from": date_from.isoformat()}
         for _ in range(20):
-            params = {"strategy": "longest"}
+            params = dict(base_params)
             if continuation_key:
                 params["continuation_key"] = continuation_key
             page = self._request("GET", f"/accounts/{account_id}/transactions", params=params)
@@ -281,6 +282,20 @@ def select_balance(payload: dict) -> dict | None:
     if amount.get("amount") is None:
         return None
     return {"amount": Decimal(str(amount["amount"])), "currency": amount.get("currency", "EUR")}
+
+
+def transaction_sync_start(
+    last_synced_at: datetime | None,
+    *,
+    now: datetime | None = None,
+    initial_days: int | None = None,
+    overlap_days: int | None = None,
+) -> date:
+    reference = now or datetime.now(UTC)
+    if last_synced_at is None:
+        return (reference - timedelta(days=initial_days or settings.BANK_INITIAL_SYNC_DAYS)).date()
+    overlap = settings.BANK_SYNC_OVERLAP_DAYS if overlap_days is None else overlap_days
+    return (last_synced_at - timedelta(days=overlap)).date()
 
 
 enable_banking_client = EnableBankingClient()

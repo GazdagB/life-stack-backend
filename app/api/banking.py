@@ -13,7 +13,7 @@ from app.services.auth_service import get_current_user_id
 from app.services.bank_sync_service import (
     decrypt_provider_secret, enable_banking_client, encrypt_provider_secret,
     new_authorization_state, normalize_account,
-    normalize_transaction, select_balance, state_hash,
+    normalize_transaction, select_balance, state_hash, transaction_sync_start,
 )
 
 
@@ -84,12 +84,15 @@ def sync_connection(connection_id: int, user_id: int = Depends(get_current_user_
     if not connection.get("provider_session_id"):
         raise HTTPException(status_code=409, detail="Bank authorization is not complete.")
     imported = 0
+    date_from = transaction_sync_start(connection.get("last_synced_at"))
     try:
         for account in get_accounts_for_connection(user_id, connection_id):
             balance = select_balance(enable_banking_client.balances(str(account["provider_account_id"])))
             normalized = [item for item in (
                 normalize_transaction(str(account["provider_account_id"]), transaction)
-                for transaction in enable_banking_client.transactions(str(account["provider_account_id"]))
+                for transaction in enable_banking_client.transactions(
+                    str(account["provider_account_id"]), date_from,
+                )
             ) if item is not None]
             imported += save_account_sync(user_id, account["id"], balance, normalized)
         mark_connection_synced(user_id, connection_id)

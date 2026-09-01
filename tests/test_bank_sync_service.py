@@ -1,6 +1,7 @@
 import unittest
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
 from fastapi import HTTPException
 
@@ -13,6 +14,7 @@ from app.services.bank_sync_service import (
     normalize_transaction,
     select_balance,
     suggest_category,
+    transaction_sync_start,
     transaction_fingerprint,
 )
 
@@ -35,6 +37,41 @@ class BankSyncServiceTests(unittest.TestCase):
         first = transaction_fingerprint("account-1", {"entry_reference": "entry-42", "status": "BOOK"})
         second = transaction_fingerprint("account-1", {"entry_reference": "entry-42", "status": "PDNG"})
         self.assertEqual(first, second)
+
+    def test_initial_sync_is_limited_to_configured_recent_window(self):
+        result = transaction_sync_start(
+            None,
+            now=datetime(2026, 9, 2, 12, tzinfo=UTC),
+            initial_days=31,
+        )
+        self.assertEqual(result, date(2026, 8, 2))
+
+    def test_incremental_sync_overlaps_previous_success(self):
+        result = transaction_sync_start(
+            datetime(2026, 9, 1, 18, tzinfo=UTC),
+            now=datetime(2026, 9, 2, 12, tzinfo=UTC),
+            overlap_days=3,
+        )
+        self.assertEqual(result, date(2026, 8, 29))
+
+    def test_transaction_pages_keep_the_bounded_date_filter(self):
+        client = EnableBankingClient()
+        client._request = Mock(side_effect=[
+            {"transactions": [{"entry_reference": "one"}], "continuation_key": "next"},
+            {"transactions": [{"entry_reference": "two"}]},
+        ])
+
+        result = client.transactions("account-1", date(2026, 8, 2))
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(client._request.call_args_list, [
+            call("GET", "/accounts/account-1/transactions", params={"date_from": "2026-08-02"}),
+            call(
+                "GET",
+                "/accounts/account-1/transactions",
+                params={"date_from": "2026-08-02", "continuation_key": "next"},
+            ),
+        ])
 
     def test_normalizes_booked_debit_without_storing_full_payload(self):
         result = normalize_transaction("account-1", {
