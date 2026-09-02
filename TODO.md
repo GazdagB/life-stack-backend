@@ -14,36 +14,38 @@
 
 ### Product behaviour and safety model
 
-- [ ] Classify every user-owned TODO as `FULLY_AI_ACTIONABLE`, `PARTIALLY_AI_ACTIONABLE`, or `HUMAN_REQUIRED` using structured output.
-- [ ] Return a short explanation, confidence level, missing information, AI-capable steps, and human-required steps for every classification.
-- [ ] Treat classification as advice rather than permission to perform an action.
+- [x] Classify every user-owned TODO as `FULLY_AI_ACTIONABLE`, `PARTIALLY_AI_ACTIONABLE`, or `HUMAN_REQUIRED` using structured output.
+- [x] Return a short explanation, confidence level, missing information, AI-capable steps, and human-required steps for every classification.
+- [x] Treat classification as advice rather than permission to perform an action.
 - [ ] Require explicit confirmation before generating an artifact, changing a TODO, accessing an external provider, or performing any consequential action.
-- [ ] Never automatically send email, submit forms, cancel contracts, make payments, sign documents, or impersonate the user.
-- [ ] Keep handwriting, wet signatures, identity verification, phone calls, physical delivery, and provider authentication clearly marked as human steps.
+- [x] Never automatically send email, submit forms, cancel contracts, make payments, sign documents, or impersonate the user.
+- [x] Keep handwriting, wet signatures, identity verification, phone calls, physical delivery, and provider authentication clearly marked as human steps.
 - [ ] Allow the user to correct classifications and store that feedback for deterministic rule improvement.
-- [ ] Show when a result is based on incomplete task details rather than inventing missing names, dates, addresses, membership numbers, or legal terms.
+- [x] Show when a result is based on incomplete task details rather than inventing missing names, dates, addresses, membership numbers, or legal terms.
 
 ### Data model and API
 
-- [ ] Add user-scoped `todo_ai_assessments` with TODO ID, classification, confidence, reasoning summary, structured steps, missing fields, model version, and timestamps.
+- [x] Add user-scoped `todo_ai_assessments` with TODO ID, classification, confidence, reasoning summary, structured steps, missing fields, model version, and timestamps.
 - [ ] Add user-scoped `todo_ai_artifacts` metadata for drafts and generated files without storing provider prompts or unnecessary personal data.
-- [ ] Add assessment freshness/version fields so changed TODOs are automatically marked for reassessment.
-- [ ] Add `/todos/ai/assess` for an explicitly selected batch and `/todos/{id}/ai-assessment` for retrieval and refresh.
+- [x] Add assessment content fingerprints so changed TODOs are automatically marked for reassessment.
+- [x] Add `/todos/ai-assess` for an explicitly selected batch and `/todos/ai-assessments` for user-scoped retrieval.
+- [ ] Add a single-TODO retrieval and refresh endpoint if the document action flow needs it.
 - [ ] Add `/todos/{id}/ai-actions` to list only the actions currently supported by Life Stack.
 - [ ] Add `/todos/{id}/ai-artifacts` for preview, regeneration, acceptance, download, and deletion.
 - [ ] Keep all queries and generated artifacts strictly scoped to the authenticated user.
-- [ ] Add bounded batch sizes, request timeouts, per-user rate limits, and idempotency protection.
+- [x] Add bounded batch sizes and provider request timeouts.
+- [ ] Add per-user assessment rate limits and idempotency protection.
 
 ### Assessment engine
 
-- [ ] Combine deterministic rules with OpenAI structured output instead of relying on unconstrained free-form classification.
-- [ ] Use the OpenAI Responses API with strict JSON Schema and `store: false`.
-- [ ] Send only the minimum required TODO title, description, due date, and relevant user-provided context.
+- [x] Combine deterministic safety rules with OpenAI structured output instead of relying on unconstrained free-form classification.
+- [x] Use the OpenAI Responses API with strict JSON Schema and `store: false`.
+- [x] Send only the minimum required TODO title, description, and due date.
 - [ ] Detect common capabilities such as drafting, summarising, planning, translating, calculating, researching, document generation, and data entry preparation.
-- [ ] Detect human-only boundaries such as signatures, calls, physical errands, identity checks, account login, legal acceptance, and payment authorisation.
+- [x] Detect human-only boundaries such as signatures, calls, physical errands, identity checks, account login, legal acceptance, and payment authorisation.
 - [ ] Separate “AI can prepare this” from “Life Stack currently has an implemented tool for this.”
 - [ ] Fall back to `HUMAN_REQUIRED` with low confidence when the model is unavailable or safe classification is not possible.
-- [ ] Never mark a high-impact task fully actionable solely because text generation is possible.
+- [x] Never mark a high-impact task fully actionable solely because text generation is possible.
 
 ### Document generation
 
@@ -57,7 +59,7 @@
 
 ### First end-to-end template: cancellation letter
 
-- [ ] Recognise cancellation tasks such as “Verdi subscription cancellation letter” as partially AI-actionable.
+- [x] Recognise cancellation tasks such as “Verdi subscription cancellation letter” as partially AI-actionable.
 - [ ] Ask for the organisation address, membership/contract number, sender address, desired cancellation date, and delivery preference when missing.
 - [ ] Draft an appropriate German `Kündigungsschreiben` without inventing contractual notice periods.
 - [ ] Include a request for written confirmation and the effective cancellation date.
@@ -67,11 +69,11 @@
 
 ### Security, privacy, and quality
 
-- [ ] Treat TODO descriptions and imported document text as untrusted data and defend against prompt injection.
-- [ ] Prevent cross-user TODO, profile, business, bank, movie, and document context leakage.
+- [x] Treat TODO descriptions as untrusted data and defend against prompt injection in assessment prompts.
+- [x] Scope assessment queries and persistence to the authenticated user without loading unrelated profile, business, bank, movie, or document context.
 - [ ] Redact secrets, credentials, full bank data, authentication tokens, and unrelated profile fields from model input and logs.
 - [ ] Define retention and deletion behaviour for assessments, accepted drafts, generated PDFs, and rejected generations.
-- [ ] Add unit tests for classification rules, structured-output parsing, missing information, and safe fallback behaviour.
+- [x] Add unit tests for classification rules, structured-output parsing, missing information, and safe fallback behaviour.
 - [ ] Route-test authentication, ownership isolation, batch limits, rate limits, artifact deletion, and provider failures.
 - [ ] Render and visually inspect cancellation-letter PDFs in German before release.
 - [ ] Add evaluation fixtures for fully actionable, partially actionable, and human-required tasks, including ambiguous and high-impact cases.
