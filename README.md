@@ -30,6 +30,7 @@ The FastAPI and PostgreSQL service behind **Life Stack**, a private personal ope
 | Expenses | User-scoped CRUD, descriptions, categories, and dated spending data. |
 | Recurring commitments | CRUD plus backend-owned daily, weekly, monthly, and yearly forecast calculations that respect start/end dates. |
 | Banking | Enable Banking institution discovery, hosted consent, encrypted session storage, balances, transaction synchronisation, deduplication, categorisation suggestions, and reviewed expense import. |
+| Net worth | User-scoped assets and liabilities, ownership-adjusted totals, linked bank balances, manual valuations, and historical snapshots. |
 | Tasks | Authenticated user-owned task CRUD. |
 | Movies | OMDb search/catalogue, personal lists and ratings, OpenAI recommendations, and AI-assisted critique rewriting. |
 | Business invoicing | Multiple businesses, clients, invoices, line items, payments, credit notes, versioned branding/signatures, and multilingual ReportLab PDFs. |
@@ -234,6 +235,7 @@ The backend exposes routes without `/api`; Caddy adds the browser-visible `/api`
 | `/clients` | Client CRUD scoped to user and business. |
 | `/invoices` | Invoice CRUD, issue, payments, credit notes, and PDF. |
 | `/banking` | Institution discovery, connection start/callback, accounts, synchronisation, transaction review/import, and disconnect. |
+| `/net-worth` | Asset/liability CRUD, current summaries, valuation history, and daily snapshots. |
 | `/healthz` | Liveness check that does not query PostgreSQL. |
 | `/readyz` | Readiness check that runs `SELECT 1` and returns no connection details. |
 

@@ -172,6 +172,20 @@
 - [ ] Add outbound invoice email and immutable delivery audit records.
 - [ ] Add jurisdiction-specific validation tests and production reconciliation tools.
 
+## Net worth tracking
+
+- [x] Add a user-scoped net-worth domain covering assets, liabilities, and ownership percentage.
+- [x] Support manually valued cash, bank accounts, investments, property, vehicles, businesses, loans, credit cards, and other assets or debts.
+- [x] Reuse linked-bank balances without double-counting accounts that also have a manual valuation.
+- [ ] Store immutable valuation snapshots so historical net worth can be reconstructed accurately.
+- [x] Calculate current total assets, total liabilities, and net worth per selected currency.
+- [ ] Track change over one month, three months, one year, and all time without confusing transfers with gains or losses.
+- [ ] Add multi-currency valuations with an explicit base currency, exchange-rate source, and captured conversion rate.
+- [ ] Distinguish liquid assets, investments, property, and debt in summary responses.
+- [x] Add user-scoped CRUD, summary, history-series, and snapshot endpoints with ownership checks.
+- [ ] Define safe deletion, archival, bank-disconnection, and historical-retention behaviour.
+- [ ] Unit-test aggregation, liabilities, partial ownership, currency conversion, missing valuations, and bank/manual deduplication.
+
 ## Longer-term backend ideas
 
 - [ ] Income and cash-flow forecasting domain.
