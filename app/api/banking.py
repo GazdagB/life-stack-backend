@@ -105,9 +105,11 @@ def sync_connection(connection_id: int, user_id: int = Depends(get_current_user_
 @router.get("/transactions")
 def get_transactions(
     status: Literal["PENDING", "IMPORTED", "IGNORED"] = "PENDING",
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     user_id: int = Depends(get_current_user_id),
 ):
-    return list_transactions(user_id, status)
+    return list_transactions(user_id, status, limit, offset)
 
 
 @router.post("/transactions/{transaction_id}/import")

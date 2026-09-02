@@ -173,23 +173,41 @@ def save_account_sync(user_id: int, account_id: int, balance: dict | None, trans
 def mark_connection_synced(user_id: int, connection_id: int, error: str | None = None):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE bank_connections
-                SET last_synced_at = CASE WHEN %s IS NULL THEN CURRENT_TIMESTAMP ELSE last_synced_at END,
-                    last_error = %s,
-                    status = CASE WHEN %s IS NULL THEN 'AUTHORIZED' ELSE 'ERROR' END,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s AND user_id = %s
-                """,
-                (error, error, error, connection_id, user_id),
-            )
+            if error is None:
+                cur.execute(
+                    """
+                    UPDATE bank_connections
+                    SET last_synced_at = CURRENT_TIMESTAMP, last_error = NULL,
+                        status = 'AUTHORIZED', updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (connection_id, user_id),
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE bank_connections
+                    SET last_error = %s, status = 'ERROR', updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (error, connection_id, user_id),
+                )
 
 
-def list_transactions(user_id: int, import_status: str = "PENDING"):
+def list_transactions(
+    user_id: int,
+    import_status: str = "PENDING",
+    limit: int = 100,
+    offset: int = 0,
+):
     with get_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return cur.execute(
+            total = cur.execute(
+                """SELECT COUNT(*) AS total FROM bank_transactions
+                   WHERE user_id = %s AND import_status = %s""",
+                (user_id, import_status),
+            ).fetchone()["total"]
+            items = cur.execute(
                 """
                 SELECT bt.id, bt.direction, bt.booking_status, bt.amount, bt.currency,
                        bt.booking_date, bt.merchant_name, bt.description,
@@ -199,9 +217,15 @@ def list_transactions(user_id: int, import_status: str = "PENDING"):
                 JOIN bank_accounts ba ON ba.id = bt.bank_account_id AND ba.user_id = bt.user_id
                 WHERE bt.user_id = %s AND bt.import_status = %s
                 ORDER BY bt.booking_date DESC, bt.id DESC
+                LIMIT %s OFFSET %s
                 """,
-                (user_id, import_status),
+                (user_id, import_status, limit, offset),
             ).fetchall()
+    return {
+        "items": items,
+        "total": total,
+        "has_more": offset + len(items) < total,
+    }
 
 
 def import_transaction(user_id: int, transaction_id: int, category_id: int):
