@@ -217,6 +217,8 @@ def enforce_safety(todo: dict[str, Any], raw: dict[str, Any], model_name: str) -
     if classification not in CLASSIFICATIONS:
         classification = "HUMAN_REQUIRED"
     actions = [action for action in _safe_strings(raw.get("supported_actions")) if action in SUPPORTED_ACTIONS]
+    deterministic_actions = rules_assessment(todo)["supported_actions"]
+    actions = list(dict.fromkeys(actions + deterministic_actions))
     has_boundary = any(term in text for term in _PARTIAL_TERMS + _HUMAN_TERMS)
     if classification == "FULLY_AI_ACTIONABLE" and has_boundary:
         classification = "PARTIALLY_AI_ACTIONABLE" if actions else "HUMAN_REQUIRED"

@@ -26,11 +26,13 @@
 ### Data model and API
 
 - [x] Add user-scoped `todo_ai_assessments` with TODO ID, classification, confidence, reasoning summary, structured steps, missing fields, model version, and timestamps.
+- [x] Add user-scoped AI work sessions and conversation messages with task-change reset behaviour.
 - [ ] Add user-scoped `todo_ai_artifacts` metadata for drafts and generated files without storing provider prompts or unnecessary personal data.
 - [x] Add assessment content fingerprints so changed TODOs are automatically marked for reassessment.
 - [x] Add `/todos/ai-assess` for an explicitly selected batch and `/todos/ai-assessments` for user-scoped retrieval.
 - [ ] Add a single-TODO retrieval and refresh endpoint if the document action flow needs it.
 - [ ] Add `/todos/{id}/ai-actions` to list only the actions currently supported by Life Stack.
+- [x] Add start, resume, message, editable-draft, and PDF endpoints for a user-owned TODO work session.
 - [ ] Add `/todos/{id}/ai-artifacts` for preview, regeneration, acceptance, download, and deletion.
 - [ ] Keep all queries and generated artifacts strictly scoped to the authenticated user.
 - [x] Add bounded batch sizes and provider request timeouts.
@@ -49,23 +51,23 @@
 
 ### Document generation
 
-- [ ] Implement a reusable document-action interface beginning with formal letters.
-- [ ] Generate editable letter drafts before PDFs; never make the PDF the only review surface.
-- [ ] Reuse the existing ReportLab PDF stack with locale-aware typography and page-layout tests.
+- [x] Implement a reusable guided work-session interface beginning with editable text and formal letters.
+- [x] Generate editable letter drafts before PDFs; never make the PDF the only review surface.
+- [x] Reuse ReportLab with bundled Unicode fonts and PDF-generation tests.
 - [ ] Support sender, recipient, subject, reference/membership number, requested effective date, body, attachments note, place/date, and a blank signature area.
-- [ ] Validate all required fields and present a completion checklist before generation.
-- [ ] Preserve the accepted wording separately from generated PDF bytes so documents can be regenerated.
+- [x] Ask for missing required information and present remaining human steps before generation.
+- [x] Preserve the accepted wording separately from generated PDF bytes so documents can be regenerated.
 - [ ] Add PDF download audit metadata without logging document contents or personal identifiers.
 
 ### First end-to-end template: cancellation letter
 
 - [x] Recognise cancellation tasks such as “Verdi subscription cancellation letter” as partially AI-actionable.
-- [ ] Ask for the organisation address, membership/contract number, sender address, desired cancellation date, and delivery preference when missing.
-- [ ] Draft an appropriate German `Kündigungsschreiben` without inventing contractual notice periods.
-- [ ] Include a request for written confirmation and the effective cancellation date.
-- [ ] Generate a printable PDF with a clearly marked handwritten-signature area.
-- [ ] Return a human checklist: verify details, print, sign, copy/scan for records, and send using the chosen delivery method.
-- [ ] Keep sending, signing, and proof-of-delivery tracking outside automated execution until separately implemented and approved.
+- [x] Ask for the organisation address, membership/contract reference, sender address, and desired cancellation timing when missing.
+- [x] Draft an appropriate German `Kündigungsschreiben` without inventing contractual notice periods.
+- [x] Include a request for written confirmation and the effective cancellation date.
+- [x] Generate a printable PDF with a clearly marked handwritten-signature area.
+- [x] Return a human checklist: verify details, print, sign, copy/scan for records, and send using the chosen delivery method.
+- [x] Keep sending, signing, and proof-of-delivery tracking outside automated execution until separately implemented and approved.
 
 ### Security, privacy, and quality
 
