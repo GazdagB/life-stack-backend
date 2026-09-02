@@ -94,15 +94,6 @@ def append_work_message(user_id: int, session_id: int, role: str, content: str):
                 "SELECT 1 FROM todo_ai_work_sessions WHERE id = %s AND user_id = %s",
                 (session_id, user_id),
             ).fetchone()
-
-
-def delete_work_message(user_id: int, message_id: int) -> None:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "DELETE FROM todo_ai_work_messages WHERE id = %s AND user_id = %s",
-                (message_id, user_id),
-            )
             if session_exists is None:
                 raise HTTPException(status_code=404, detail="AI work session not found")
             return cur.execute(
@@ -113,6 +104,15 @@ def delete_work_message(user_id: int, message_id: int) -> None:
                 """,
                 (session_id, user_id, role, content),
             ).fetchone()
+
+
+def delete_work_message(user_id: int, message_id: int) -> None:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM todo_ai_work_messages WHERE id = %s AND user_id = %s",
+                (message_id, user_id),
+            )
 
 
 def apply_assistant_turn(user_id: int, session_id: int, turn: dict, model_name: str):
