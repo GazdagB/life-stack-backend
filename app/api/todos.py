@@ -52,7 +52,7 @@ class TodoWorkStartRequest(BaseModel):
 
 
 class TodoWorkMessageRequest(BaseModel):
-    content: str = Field(min_length=1, max_length=4000)
+    content: str = Field(min_length=1, max_length=6000)
     language: Literal["en", "de", "hu"] = "en"
 
 

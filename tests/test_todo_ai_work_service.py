@@ -72,6 +72,7 @@ class TodoAIWorkServiceTests(unittest.TestCase):
         payload = json.loads(request["input"])
         self.assertFalse(request["store"])
         self.assertTrue(request["text"]["format"]["strict"])
+        self.assertIn("exactly one answerable fact", request["instructions"])
         self.assertEqual(payload["task"]["title"], "Verdi subscription cancellation letter")
         self.assertEqual(payload["assessment"]["missing_information"], ["Membership number"])
         self.assertNotIn("user_id", request["input"])
