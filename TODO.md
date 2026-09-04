@@ -1,6 +1,6 @@
 # Life Stack Backend Roadmap
 
-> **Next product feature:** AI Task Assistant — classify TODOs by AI capability and safely produce useful drafts, documents, and action plans.
+> **Current priority:** harden the production app and finish the AI Task Assistant lifecycle around the working assessment, chat, draft, and PDF foundation.
 >
 > Socials remains planned after the AI Task Assistant foundation is stable.
 
@@ -17,7 +17,8 @@
 - [x] Classify every user-owned TODO as `FULLY_AI_ACTIONABLE`, `PARTIALLY_AI_ACTIONABLE`, or `HUMAN_REQUIRED` using structured output.
 - [x] Return a short explanation, confidence level, missing information, AI-capable steps, and human-required steps for every classification.
 - [x] Treat classification as advice rather than permission to perform an action.
-- [ ] Require explicit confirmation before generating an artifact, changing a TODO, accessing an external provider, or performing any consequential action.
+- [x] Require a deliberate **Do your part** confirmation before starting artifact generation.
+- [ ] Require explicit confirmation before changing a TODO, accessing an external provider, or performing any consequential action.
 - [x] Never automatically send email, submit forms, cancel contracts, make payments, sign documents, or impersonate the user.
 - [x] Keep handwriting, wet signatures, identity verification, phone calls, physical delivery, and provider authentication clearly marked as human steps.
 - [ ] Allow the user to correct classifications and store that feedback for deterministic rule improvement.
@@ -34,7 +35,7 @@
 - [ ] Add `/todos/{id}/ai-actions` to list only the actions currently supported by Life Stack.
 - [x] Add start, resume, message, editable-draft, and PDF endpoints for a user-owned TODO work session.
 - [ ] Add `/todos/{id}/ai-artifacts` for preview, regeneration, acceptance, download, and deletion.
-- [ ] Keep all queries and generated artifacts strictly scoped to the authenticated user.
+- [x] Keep all queries and generated artifacts strictly scoped to the authenticated user.
 - [x] Add bounded batch sizes and provider request timeouts.
 - [ ] Add per-user assessment rate limits and idempotency protection.
 
@@ -45,7 +46,7 @@
 - [x] Send only the minimum required TODO title, description, and due date.
 - [ ] Detect common capabilities such as drafting, summarising, planning, translating, calculating, researching, document generation, and data entry preparation.
 - [x] Detect human-only boundaries such as signatures, calls, physical errands, identity checks, account login, legal acceptance, and payment authorisation.
-- [ ] Separate “AI can prepare this” from “Life Stack currently has an implemented tool for this.”
+- [x] Separate “AI can prepare this” from “Life Stack currently has an implemented tool for this.”
 - [ ] Fall back to `HUMAN_REQUIRED` with low confidence when the model is unavailable or safe classification is not possible.
 - [x] Never mark a high-impact task fully actionable solely because text generation is possible.
 
@@ -193,12 +194,12 @@
 - [x] Harden the legacy development initializer against production execution.
 - [x] Back up and inspect the current local PostgreSQL database.
 - [x] Stamp the verified existing database at `20260901_01`; never run the baseline against it.
-- [ ] Create the Railway PostgreSQL and private backend services in the same EU region as the frontend.
-- [ ] Configure all production variables through Railway references/secrets.
+- [ ] Move the Railway PostgreSQL and private backend services from US West into the same EU region as the frontend.
+- [x] Configure all current production variables through Railway references/secrets.
 - [x] Import data through a temporary protected database connection, verify it, then remove public database access.
 - [ ] Enable Railway backups/PITR plus encrypted off-platform dumps and perform a restore drill.
 - [ ] Verify `healthcheck.railway.app` host allowance, proxy client IP behaviour, secure cookies, rate limiting, and logs.
-- [ ] Register and test the production Enable Banking callback only after the HTTPS domain is live.
+- [x] Register and test the production Enable Banking callback only after the HTTPS domain is live.
 
 ## Banking follow-ups
 
@@ -226,14 +227,14 @@
 
 ## Private account allowlist
 
-- [ ] Add a normalized `ALLOWED_USER_EMAILS` production setting and document it in `.env.example` without real addresses.
-- [ ] Fail closed in production when the allowlist is missing or empty, while retaining a safe development/test configuration.
-- [ ] Enforce the allowlist during login, registration, and profile email changes; do not rely only on `REGISTRATION_ENABLED=false`.
-- [ ] Compare canonicalized email addresses consistently and reject duplicate or malformed allowlist entries during startup.
-- [ ] Return a generic authentication failure for disallowed accounts so the API does not reveal account or allowlist membership.
-- [ ] Add an owner-safe way to inspect configured allowlist membership without exposing it to unauthenticated users or logs.
-- [ ] Test allowed and denied login, disabled registration, email-change bypass attempts, case normalization, missing production configuration, and existing-session revocation policy.
-- [ ] Document the Railway secret-rotation procedure and the process for safely adding or removing a household member.
+- [x] Add a normalized `ALLOWED_USER_EMAILS` production setting and document it in `.env.example` without real addresses.
+- [x] Fail closed in production when the allowlist is missing or empty, while retaining a safe development/test configuration.
+- [x] Enforce the allowlist during login, registration, and profile email changes; do not rely only on `REGISTRATION_ENABLED=false`.
+- [x] Compare canonicalized email addresses consistently and reject duplicate or malformed allowlist entries during startup.
+- [x] Return a generic authentication failure for disallowed accounts so the API does not reveal account or allowlist membership.
+- [x] Add an owner-safe way to inspect configured allowlist membership without exposing it to unauthenticated users or logs.
+- [x] Test allowed and denied login, disabled registration, email-change bypass attempts, case normalization, missing production configuration, and existing-session revocation policy.
+- [x] Document the Railway secret-rotation procedure and the process for safely adding or removing a household member.
 
 ## Statutory invoicing follow-ups
 

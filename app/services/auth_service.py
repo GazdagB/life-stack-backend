@@ -138,15 +138,7 @@ def get_current_user(session: str | None = Cookie(default=None)):
 
     payload = decode_access_token(session)
     user_id = _authenticated_session_user_id(payload)
-    user = get_user_by_id_public(user_id)
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-        )
-
-    return user
+    return _allowed_user(user_id)
 
 
 def get_current_user_id(session: str | None = Cookie(default=None)) -> int:
@@ -156,7 +148,19 @@ def get_current_user_id(session: str | None = Cookie(default=None)) -> int:
             detail="Not authenticated",
         )
 
-    return _authenticated_session_user_id(decode_access_token(session))
+    user_id = _authenticated_session_user_id(decode_access_token(session))
+    _allowed_user(user_id)
+    return user_id
+
+
+def _allowed_user(user_id: int):
+    user = get_user_by_id_public(user_id)
+    if user is None or not settings.is_email_allowed(user["email"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+        )
+    return user
 
 
 def _authenticated_session_user_id(payload: dict) -> int:

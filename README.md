@@ -135,6 +135,7 @@ Copy `.env.example` and keep the real `.env` outside Git.
 | `SESSION_COOKIE_SECURE` | `false` | Must be `true` behind production HTTPS. |
 | `PUBLIC_API_PREFIX` | `/api` | Browser-visible prefix used when scoping the refresh cookie. |
 | `REGISTRATION_ENABLED` | `false` | Controls whether the account creation endpoint is available. |
+| `ALLOWED_USER_EMAILS` | Empty in development | Comma-separated private-account allowlist. Required in production; the first address is treated as the owner and may inspect the configured list. |
 | `ALLOWED_ORIGINS` | Local Vite origins | Comma-separated credentialed CORS/origin allowlist. |
 | `ALLOWED_HOSTS` | Local/test hosts | Comma-separated host allowlist. Railway needs the public hostname and `healthcheck.railway.app`. |
 | `ENABLE_API_DOCS` | `true` outside production | Enables OpenAPI, Swagger UI, and ReDoc. |
@@ -254,6 +255,19 @@ Swagger is the source of exact development request/response schemas when API doc
 - Login and password reauthentication use persistent HMAC-keyed account/IP throttling.
 - Authentication routes return `Cache-Control: no-store`.
 
+### Private account allowlist
+
+`ALLOWED_USER_EMAILS` is a comma-separated, case-insensitive list of the only accounts permitted to use Life Stack. Production refuses to start when it is empty. The first address is the owner: only that account receives the complete configured list from `/auth/access-policy`; other allowed members receive only their own authorization state.
+
+The allowlist is checked during registration, login, refresh, profile updates, and every authenticated request. Removing an address therefore blocks its existing access immediately. Login failures stay generic, so callers cannot discover whether an account exists or whether its email is allowed.
+
+To change household membership safely:
+
+1. Add the new normalized address to the protected Railway `ALLOWED_USER_EMAILS` variable without removing the existing owner.
+2. Deploy the configuration change, create or update the account while the new address is allowed, and confirm that it can sign in.
+3. Remove an old address only after the replacement works. Railway redeploys the service, and existing sessions for the removed address are denied on their next request.
+4. Keep the intended owner first in the list. Never commit real household addresses or temporarily set an empty production list.
+
 ## External integrations
 
 ### OMDb
@@ -309,6 +323,7 @@ PUBLIC_API_PREFIX=/api
 ALLOWED_ORIGINS=https://lifeos.gazdagbalazs.com
 ALLOWED_HOSTS=lifeos.gazdagbalazs.com,healthcheck.railway.app
 REGISTRATION_ENABLED=false
+ALLOWED_USER_EMAILS=<owner@example.com>,<household-member@example.com>
 ENABLE_API_DOCS=false
 ENABLE_DB_HEALTH_ROUTE=false
 FORWARDED_ALLOW_IPS=*

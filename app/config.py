@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+from email_validator import EmailNotValidError, validate_email
 import os
 
 load_dotenv()
@@ -8,12 +9,27 @@ def _csv_setting(name: str, default: str) -> list[str]:
     return [value.strip() for value in os.getenv(name, default).split(",") if value.strip()]
 
 
+def _canonical_email(value: str) -> str:
+    try:
+        return validate_email(value.strip(), check_deliverability=False).normalized.casefold()
+    except EmailNotValidError as error:
+        raise RuntimeError("Email allowlist contains an invalid address") from error
+
+
+def _email_allowlist_setting(name: str) -> tuple[str, ...]:
+    values = [_canonical_email(value) for value in os.getenv(name, "").split(",") if value.strip()]
+    if len(values) != len(set(values)):
+        raise RuntimeError(f"{name} contains duplicate addresses")
+    return tuple(values)
+
+
 def _bounded_int_setting(name: str, default: int, minimum: int, maximum: int) -> int:
     try:
         value = int(os.getenv(name, str(default)))
     except ValueError:
         return default
     return min(max(value, minimum), maximum)
+
 
 class Settings:
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
@@ -29,6 +45,7 @@ class Settings:
     REFRESH_TOKEN_IDLE_DAYS = int(os.getenv("REFRESH_TOKEN_IDLE_DAYS", "7"))
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "false").lower() == "true"
+    ALLOWED_USER_EMAILS = _email_allowlist_setting("ALLOWED_USER_EMAILS")
     ALLOWED_ORIGINS = _csv_setting(
         "ALLOWED_ORIGINS",
         "http://localhost:5173,http://127.0.0.1:5173",
@@ -56,6 +73,21 @@ class Settings:
     ENABLE_BANKING_CONSENT_DAYS = _bounded_int_setting("ENABLE_BANKING_CONSENT_DAYS", 89, 1, 90)
     BANK_INITIAL_SYNC_DAYS = _bounded_int_setting("BANK_INITIAL_SYNC_DAYS", 31, 1, 365)
     BANK_SYNC_OVERLAP_DAYS = _bounded_int_setting("BANK_SYNC_OVERLAP_DAYS", 3, 0, 14)
+
+    def is_email_allowed(self, email: str) -> bool:
+        if not self.ALLOWED_USER_EMAILS:
+            return self.ENVIRONMENT != "production"
+        try:
+            return _canonical_email(email) in self.ALLOWED_USER_EMAILS
+        except RuntimeError:
+            return False
+
+    def is_owner_email(self, email: str) -> bool:
+        return (
+            bool(self.ALLOWED_USER_EMAILS)
+            and self.is_email_allowed(email)
+            and _canonical_email(email) == self.ALLOWED_USER_EMAILS[0]
+        )
 
     def banking_configuration_error(self) -> str | None:
         if not self.ENABLE_BANKING_APP_ID:
@@ -86,6 +118,8 @@ class Settings:
                 raise RuntimeError("Production ALLOWED_ORIGINS must use HTTPS")
             if not self.ALLOWED_HOSTS or "*" in self.ALLOWED_HOSTS:
                 raise RuntimeError("Production ALLOWED_HOSTS must explicitly list the public hostname")
+            if not self.ALLOWED_USER_EMAILS:
+                raise RuntimeError("ALLOWED_USER_EMAILS must contain at least one address in production")
             # Banking is an optional integration. Its configuration is checked by
             # the banking client so a missing provider secret cannot take down the
             # rest of the application during startup.

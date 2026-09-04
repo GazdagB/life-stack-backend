@@ -16,6 +16,7 @@ from app.repositories.users_repository import (
     delete_user_avatar,
     get_user_avatar,
     get_user_by_email_public,
+    get_user_by_id_public,
     get_user_password_hash_by_id,
     get_user_by_username_private,
     get_user_by_username_public,
@@ -147,12 +148,22 @@ class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=15, max_length=128)
 
+
+class PrivateAccessPolicy(BaseModel):
+    enforced: bool
+    is_owner: bool
+    allowed_emails: list[str]
+
+
 @router.post("/register")
 def register_user(user: UserCreate):
     if not settings.REGISTRATION_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    email = str(user.email).casefold()
+    if not settings.is_email_allowed(email):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     existing_user = get_user_by_username_public(user.username)
-    existing_user_email = get_user_by_email_public(user.email)
+    existing_user_email = get_user_by_email_public(email)
 
     if existing_user is not None:
         raise HTTPException(
@@ -167,7 +178,7 @@ def register_user(user: UserCreate):
         )
 
     password_hash = get_password_hash(user.plain_password)
-    return create_user(user.username,user.email, password_hash)
+    return create_user(user.username, email, password_hash)
 
 @router.post("/login")
 def login_user(
@@ -184,7 +195,8 @@ def login_user(
         user["password_hash"] if user else None,
     )
 
-    if not password_is_valid:
+    email_is_allowed = bool(user) and settings.is_email_allowed(user["email"])
+    if not password_is_valid or not email_is_allowed:
         security_logger.warning(
             "login_failed user_id=%s ip=%s",
             user["id"] if user else "unknown",
@@ -244,6 +256,11 @@ def refresh_user_session(
     if rotated is None:
         return _invalid_refresh_response()
 
+    user = get_user_by_id_public(rotated["user_id"])
+    if user is None or not settings.is_email_allowed(user["email"]):
+        revoke_refresh_session_family(rotated["user_id"], rotated["family_id"])
+        return _invalid_refresh_response()
+
     _device_identity(response, device_token)
 
     access_max_age = _set_access_cookie(
@@ -267,6 +284,16 @@ def get_me(current_user=Depends(get_current_user)):
     return current_user
 
 
+@router.get("/access-policy", response_model=PrivateAccessPolicy)
+def get_private_access_policy(current_user=Depends(get_current_user)):
+    is_owner = settings.is_owner_email(current_user["email"])
+    return PrivateAccessPolicy(
+        enforced=bool(settings.ALLOWED_USER_EMAILS),
+        is_owner=is_owner,
+        allowed_emails=list(settings.ALLOWED_USER_EMAILS) if is_owner else [],
+    )
+
+
 @router.put("/profile")
 def update_profile(
     profile: ProfileUpdate,
@@ -275,6 +302,7 @@ def update_profile(
     username = profile.username.strip()
     display_name = profile.display_name.strip() if profile.display_name else None
     bio = profile.bio.strip() if profile.bio else None
+    email = str(profile.email).casefold()
 
     if len(username) < 3:
         raise HTTPException(
@@ -282,10 +310,16 @@ def update_profile(
             detail="Username must contain at least 3 characters",
         )
 
+    if not settings.is_email_allowed(email):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address is not permitted for this private application",
+        )
+
     return update_user_profile(
         current_user["id"],
         username,
-        str(profile.email).lower(),
+        email,
         display_name or None,
         bio or None,
     )

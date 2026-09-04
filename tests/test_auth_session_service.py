@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from app.config import settings
 from app.services.auth_service import (
+    _allowed_user,
     _authenticated_session_user_id,
     create_access_token,
     decode_access_token,
@@ -76,6 +77,17 @@ class AuthSessionServiceTests(unittest.TestCase):
             _authenticated_session_user_id({"sub": "42", "sid": str(uuid4())})
 
         self.assertEqual(raised.exception.status_code, 401)
+
+    @patch("app.services.auth_service.settings.is_email_allowed", return_value=False)
+    @patch("app.services.auth_service.get_user_by_id_public", return_value={"id": 42, "email": "removed@example.com"})
+    def test_removed_allowlist_member_loses_existing_access_immediately(self, _, __):
+        from fastapi import HTTPException
+
+        with self.assertRaises(HTTPException) as raised:
+            _allowed_user(42)
+
+        self.assertEqual(raised.exception.status_code, 401)
+        self.assertEqual(raised.exception.detail, "Could not validate credentials")
 
 
 if __name__ == "__main__":
